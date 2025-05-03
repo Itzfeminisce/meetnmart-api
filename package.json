@@ -1,0 +1,45 @@
+{
+  "name": "meetnmart-api",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "NODE_ENV=production bun run src/index.ts",
+    "dev": "NODE_ENV=development bun --watch run src/index.ts ",
+    "build": "tsc",
+    "lint": "eslint src/**/*.ts"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/crypto-js": "^4.2.2",
+    "@types/ejs": "^3.1.5",
+    "@types/express": "^5.0.1",
+    "@types/formidable": "^3.4.5",
+    "@types/helmet": "^4.0.0",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^20.11.16",
+    "@types/nodemailer": "^6.4.17",
+    "bun-types": "latest",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
+    "ejs": "^3.1.10",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.5.0",
+    "formidable": "^3.5.2",
+    "googleapis": "^148.0.0",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "livekit-server-sdk": "^2.12.0",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.10.0",
+    "socket.io": "^4.8.1",
+    "uuid": "^11.1.0",
+    "zod": "^3.24.2"
+  }
+}
