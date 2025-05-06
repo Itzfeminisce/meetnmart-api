@@ -78,9 +78,9 @@ export const asyncHandler = (
     // Log the incoming request
     if (enableLogging) {
       logger?.info(`[${requestId}] Request: ${req.method} ${req.originalUrl}`, {
-        headers: maskSensitiveHeaders(req.headers),
+        // headers: maskSensitiveHeaders(req.headers),
         query: req.query,
-        body: maskSensitiveData(req.body),
+        body: "***************", //maskSensitiveData(req.body),
         ip: req.ip,
         timestamp: new Date().toISOString()
       });
@@ -103,7 +103,7 @@ export const asyncHandler = (
       // Log the response
       if (enableLogging) {
         logger?.info(`[${requestId}] Response: ${res.statusCode} (${responseTime}ms)`, {
-          response: maskSensitiveData(result),
+          response: "*******************", // maskSensitiveData(result),
           responseTime,
           timestamp: new Date().toISOString()
         });

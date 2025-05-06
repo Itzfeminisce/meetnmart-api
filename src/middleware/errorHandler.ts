@@ -1,7 +1,7 @@
 import { ErrorRequestHandler } from 'express';
 import { logger } from "../logger";
 import { HttpResponse, Unknown} from "../utils/responses";
-import { getEnvVar } from 'src/utils/env';
+import { getEnvVar } from '../utils/env';
 
 interface ErrorResponse {
   success: false;

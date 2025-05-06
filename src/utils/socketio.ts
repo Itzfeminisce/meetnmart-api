@@ -2,10 +2,11 @@
 
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import { logger } from 'src/logger';
+import { logger } from '../logger';
 import { cacheService, ICacheService } from './cacheUtils';
 import { verifyToken } from './jwtUtils';
-import { CallAction } from 'src/events';
+import { AppEvent, CallAction } from '../events';
+import { updateUserProfileById } from '../functions';
 
 const socketLogger = logger;
 
@@ -142,6 +143,7 @@ export class SocketIOServer {
       // Cache the successful authentication
       (socket as AuthenticatedSocket).userId = token;
       await this.cacheService.set(cacheKey, socket.id, this.config.cache?.ttl);
+      await updateUserProfileById(token, {is_online: true})
 
       socketLogger.debug('User authenticated with JWT', {
         socketId: socket.id,
@@ -207,10 +209,10 @@ export class SocketIOServer {
       try {
         socketLogger.info('Socket connection attempt', {
           socketId: socket.id,
-          headers: {
-            ...socket.handshake.headers,
-            cookie: '[redacted]' // Don't log cookies
-          },
+          // headers: {
+          //   ...socket.handshake.headers,
+          //   cookie: '[redacted]' // Don't log cookies
+          // },
           query: socket.handshake.query
         });
 
@@ -402,11 +404,11 @@ export class SocketIOServer {
   private async handleDisconnect(socket: AuthenticatedSocket) {
     const cacheKey = `${this.config.cache?.prefix}auth:${socket?.userId}`;
     await this.cacheService.del(cacheKey);
+    await updateUserProfileById(socket?.userId, {is_online: false})
+    socket.emit(AppEvent.DISCONNECT, {userId: socket.id})
   }
 
   private async handleOutgoingCall(socket: AuthenticatedSocket, data: any) {
-    console.log("[handleOutgoingCall]", { data });
-
     try {
       // const room = data.room
       // const caller = data.caller
@@ -426,8 +428,6 @@ export class SocketIOServer {
     }
   }
   private async handleEndCall(socket: AuthenticatedSocket, data: any) {
-    console.log("[handleEndCall]", { data });
-
     try {
       // const room = data.room
       // const caller = data.caller

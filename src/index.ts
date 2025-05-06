@@ -13,11 +13,27 @@ import { createLivekitToken } from './routes';
 import { asyncHandler } from './utils/asyncHandlerUtils';
 
 
-const app: Express = express();
-const allowedOrigins = [process.env.APP_URL || 'http://localhost:3000'];
+const app = express();
+const port = process.env.PORT || 8081;
 
-const port = process.env.PORT || 8081
+// Define allowed origins with more flexibility
+const allowedOrigins = [
+  process.env.APP_URL || 'http://localhost:3000',
+  'http://localhost:3001',
+  'https://dev.meetnmart.com',
+  'https://meetnmart.com',
+  // Add any other domains that need access
+];
 
+// Add a debugging endpoint to check CORS settings
+app.get('/debug-cors', (req, res) => {
+  res.json({
+    allowedOrigins,
+    requestOrigin: req.headers.origin,
+    appUrl: process.env.APP_URL,
+    nodeEnv: process.env.NODE_ENV
+  });
+});
 
 // Trust proxy settings for Express
 if (getEnvVar("NODE_ENV") === 'production') {
@@ -28,39 +44,61 @@ if (getEnvVar("NODE_ENV") === 'production') {
   app.set('trust proxy', false);
 }
 
-
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-
+// Apply CORS middleware before other middleware to handle preflight requests properly
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      logger.warn(`Origin ${origin} not allowed by CORS`);
+      callback(null, false);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Length', 'X-Requested-With'],
+  maxAge: 86400 // 24 hours in seconds - how long the results of a preflight request can be cached
 }));
-app.use(helmet());
+
+// Other middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(helmet({
+  // Disable contentSecurityPolicy for development if needed
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false
+}));
 app.use(morgan('dev'));
 app.use(ipAddressMiddleware());
 
 const httpServer = http.createServer(app);
 
 // Initialize Socket.IO with proper configuration
-initSocketIO(httpServer, {
+initSocketIO(httpServer, { 
   cors: {
     origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
   },
-  auth: {required: true, tokenKey: "token"}
+  auth: {required: true, tokenKey: "token" },
 });
 
 // Health Check Route
-app.get('/', (_: Request, res: Response) => {
+app.get('/', (_, res) => {
   res.send('MeetnMart API');
 });
 
-// Services Route
-app.use('/api/livekit/token', asyncHandler(createLivekitToken));
+// Add explicit OPTIONS handling for preflight requests for the main app
+app.options('*', cors());
+
+// Services Route - make sure to use the router correctly
+// If createLivekitToken is a router:
+
+// OR if createLivekitToken is a handler function (not a router):
+app.use('/api/livekit/token', cors(), asyncHandler(createLivekitToken));
 
 // Error handling
 app.use(notFound);
@@ -68,5 +106,7 @@ app.use(errorHandler);
 
 // Start server
 httpServer.listen(port, () => {
-  logger.info(`Application started on ${port}`);
+  logger.info(`Application started on port ${port}`);
+  logger.info(`Allowed origins: ${allowedOrigins.join(', ')}`);
+  logger.info(`APP_URL from environment: ${process.env.APP_URL || 'not set'}`);
 });

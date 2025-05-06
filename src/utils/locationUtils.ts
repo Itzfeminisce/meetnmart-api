@@ -1,4 +1,4 @@
-import { logger } from "src/logger";
+import { logger } from "../logger";
 import { cacheService } from "./cacheUtils";
 import axios from "axios";
 

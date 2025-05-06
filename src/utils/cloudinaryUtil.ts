@@ -2,7 +2,7 @@ import { DeleteApiResponse, UploadApiOptions } from 'cloudinary';
 import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
 import path from 'path';
-import { logger } from 'src/logger';
+import { logger } from '../logger';
 
 // Configure Cloudinary from environment variables
 // The CLOUDINARY_URL environment variable should be in format:

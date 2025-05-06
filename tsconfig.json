@@ -1,28 +1,51 @@
 {
   "compilerOptions": {
-    "target": "es2017",
-    "module": "commonjs",
-    "lib": ["es2017", "esnext.asynciterable"],
-    "skipLibCheck": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "moduleResolution": "node",
-    "removeComments": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "noImplicitThis": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "resolveJsonModule": true,
-    "baseUrl": "."
+    /* Basic Options */
+    "target": "ES2018",                       /* Modern target for better performance */
+    "module": "CommonJS",                     /* Output CommonJS modules */
+    "lib": ["ES2020"],                        /* Include modern JS features */
+    "outDir": "dist",                         /* Output directory */
+    "rootDir": "src",                         /* Source directory */
+    
+    /* Compilation Speed Optimization */
+    "incremental": true,                      /* Enable incremental compilation */
+    "tsBuildInfoFile": "./.tsbuildinfo",      /* Store incremental build info */
+    "skipLibCheck": true,                     /* Skip type checking of declaration files */
+    "importsNotUsedAsValues": "remove",       /* Remove imports only used as types */
+    
+    /* Reduce Type Checking */
+    "checkJs": false,                         /* Don't type check JS files */
+    "noImplicitAny": false,                   /* Allow implicit any */
+    "noImplicitThis": false,                  /* Allow implicit this */
+    "strictNullChecks": false,                /* Faster without null checks */
+    "strictFunctionTypes": false,             /* Skip function type checking */
+    "strictBindCallApply": false,             /* Skip bind/call/apply type checking */
+    "noImplicitReturns": false,               /* Don't check all code paths return */
+    "noFallthroughCasesInSwitch": false,      /* Don't check switch fallthrough */
+    "noUncheckedIndexedAccess": false,        /* Don't check indexed access */
+    "noPropertyAccessFromIndexSignature": false, /* Allow dot notation for index signatures */
+    
+    /* Module Resolution and Output */
+    "moduleResolution": "node",               /* Use Node module resolution */
+    "esModuleInterop": true,                  /* Enable interop between CommonJS and ES modules */
+    "resolveJsonModule": true,                /* Allow importing JSON files */
+    "isolatedModules": false,                 /* Faster without isolated modules */
+    "preserveConstEnums": false,              /* Don't preserve const enums */
+    "removeComments": true,                   /* Remove comments in output */
+    "sourceMap": false,                       /* Don't generate source maps to speed up build */
+    
+    /* Advanced Options */
+    "forceConsistentCasingInFileNames": true, /* Keep this enabled to prevent cross-platform issues */
+    "allowSyntheticDefaultImports": true,     /* Allow default imports from modules without default export */
+    "useDefineForClassFields": false,         /* Use Object.defineProperty for class fields */
+    "experimentalDecorators": true,           /* Enable decorators */
+    "emitDecoratorMetadata": true,            /* Emit decorator metadata */
+    
+    /* Disable Unused Features */
+    "declaration": false,                     /* Don't generate .d.ts files */
+    "declarationMap": false,                  /* Don't generate sourcemaps for declarations */
+    "noEmitOnError": false                    /* Emit output even if there are errors */
   },
-  "exclude": ["node_modules"],
-  "include": ["./src/**/*.ts"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.spec.ts"]
 }

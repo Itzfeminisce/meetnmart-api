@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { logger } from "src/logger";
+import { logger } from "../logger";
 
 // Define response status codes and their meanings
 export enum ResponseStatus {

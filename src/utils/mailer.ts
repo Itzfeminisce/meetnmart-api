@@ -5,7 +5,7 @@ import ejs from 'ejs';
 import fs from 'node:fs';
 import path from 'path';
 import { cacheService } from './cacheUtils';
-import { logger as appLogger } from 'src/logger';
+import { logger as appLogger } from '../logger';
 import { getEnvVar } from './env';
 
 const logger = {

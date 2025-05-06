@@ -1,7 +1,7 @@
 import express, { Request, Response, RequestHandler, NextFunction } from 'express';
 import { Unauthorized } from '../utils/responses';
-import { extractTokenFromHeader, verifyToken } from 'src/utils/jwtUtils';
-import { logger } from 'src/logger';
+import { extractTokenFromHeader, verifyToken } from '../utils/jwtUtils';
+import { logger } from '../logger';
 
 interface AuthenticatedRequest {
     id: string;
