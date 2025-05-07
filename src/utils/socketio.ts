@@ -62,11 +62,6 @@ export class SocketIOServer {
       }
     };
 
-    // Log configuration for debugging purposes
-    socketLogger.info('Initializing Socket.IO server with config', {
-      originalConfig,
-      processedConfig: this.config
-    });
 
     this.io = new Server(httpServer, {
       cors: this.config.cors,
