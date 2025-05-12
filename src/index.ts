@@ -9,7 +9,7 @@ import { initSocketIO } from './utils/socketio';
 import http from 'http';
 import { getEnvVar } from './utils/env';
 import { logger } from './logger';
-import { createLivekitToken } from './routes';
+import { createLivekitToken, notifyWaitlistUser } from './routes';
 import { asyncHandler } from './utils/asyncHandlerUtils';
 
 
@@ -98,7 +98,8 @@ app.options('*', cors());
 // If createLivekitToken is a router:
 
 // OR if createLivekitToken is a handler function (not a router):
-app.use('/api/livekit/token', cors(), asyncHandler(createLivekitToken));
+app.use('/livekit/token', cors(), asyncHandler(createLivekitToken));
+app.use('/waitlist', asyncHandler(notifyWaitlistUser));
 
 // Error handling
 app.use(notFound);

@@ -1,0 +1,29 @@
+<%-
+  include('../layouts/base', {
+    body: `
+      <tr>
+        <td class="content">
+          <h2 style="margin-top: 0; color: #2d3748;">Welcome to <%= app_name %>!</h2>
+          
+          <p>Hello <%= user.name || 'there' %>,</p>
+          
+          <p>Thank you for joining <%= app_name %>! We're excited to have you on board.</p>
+          
+          <p>To get started, please verify your email address by clicking the button below:</p>
+          
+          <div class="text-center">
+            <%- include('../components/button', { 
+              href: verification_url, 
+              text: 'Verify Email Address' 
+            }) %>
+          </div>
+          
+          <p>If you didn't create an account with <%= app_name %>, please ignore this email or contact our support team.</p>
+          
+          <p style="margin-bottom: 0;">Best regards,<br/>The <%= app_name %> Team</p>
+        </td>
+      </tr>
+    `,
+    subject: 'Welcome to ' + app_name
+  })
+%>

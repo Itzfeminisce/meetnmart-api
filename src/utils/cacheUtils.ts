@@ -1018,15 +1018,13 @@ export class SupabaseCacheService implements ICacheService {
     ): () => void {
         const subscription = this.supabase
             .channel('cache_changes')
-            .on(
-                'postgres_changes',
-                {
-                    event: event,
-                    schema: 'public',
-                    table: this.tableName
-                },
-                callback
-            )
+            // .on(
+            //     'postgres_changes',
+            //     {
+            //        event
+            //     },
+            //     callback
+            // )
             .subscribe();
 
         // Return unsubscribe function

@@ -1,0 +1,65 @@
+<table width="100%" border="0" cellspacing="0" cellpadding="0" style="width:100% !important;">
+    <tr>
+      <td align="center">
+        <table width="600" border="0" cellspacing="0" cellpadding="40" style="border:1px solid #eaeaea; border-radius:5px; margin:40px 0;">
+          <tr>
+            <td align="center">
+              <div style="font-family:Arial, sans-serif; font-size:16px; line-height:1.6; color:#333333; text-align:left;">
+                <h1 style="font-size:24px; font-weight:normal; margin:30px 0 15px 0; color:#333333;">You're on the MeetnMart Waitlist!</h1>
+                
+                <p>Hello there!</p>
+                
+                <p>Thanks for your interest in MeetnMart! We've added you to our waitlist as a <strong><%= userType %></strong>. We're expanding quickly and can't wait to welcome you to our community.</p>
+                
+                <% if (userType.toLowerCase() === 'seller') { %>
+                  <p>Get ready to join MeetnMart where you'll soon be able to:</p>
+                  <ul style="padding-left:20px; margin-bottom:20px;">
+                    <li>Create your seller profile and showcase what you offer</li>
+                    <li>Select your preferred marketplace for each day</li>
+                    <li>Connect with interested buyers through direct calls</li>
+                    <li>Negotiate deals in real-time and close sales faster</li>
+                    <li>Enjoy secure payments through our escrow system</li>
+                  </ul>
+                <% } else { %>
+                  <p>Get excited to join MeetnMart where you'll soon be able to:</p>
+                  <ul style="padding-left:20px; margin-bottom:20px;">
+                    <li>Browse sellers in your preferred markets</li>
+                    <li>Find exactly what you need through category searches</li>
+                    <li>Call sellers directly to negotiate your best deal</li>
+                    <li>Arrange delivery by inviting delivery personnel into your calls</li>
+                    <li>Shop with confidence using our secure escrow payment system</li>
+                  </ul>
+                <% } %>
+                
+                <div style="background-color:#f7f7f7; padding:20px; border-radius:5px; margin:25px 0;">
+                  <p style="margin:0;"><strong>What happens next?</strong></p>
+                  <p style="margin-top:10px; margin-bottom:0;">We'll email you as soon as a spot opens up. Keep an eye on your inbox—we're working to get you in as quickly as possible!</p>
+                </div>
+                
+                <p>In the meantime, you can follow us on social media for updates and marketplace tips:</p>
+                
+                <div style="text-align:center; margin:20px 0;">
+                  <a href="https://www.linedin.com/company/meetnmart" style="text-decoration:none; display:inline-block; margin:0 10px;">
+                    <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/3.0.1/linkedin.svg" width="24" height="24" alt="LinkedIn" style="vertical-align:middle;">
+                    <span style="color:#1DA1F2; vertical-align:middle; margin-left:5px;">LinkedIn</span>
+                  </a>
+                  <!-- <a href="#/instagram/@meetnmart" style="text-decoration:none; display:inline-block; margin:0 10px;">
+                    <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/3.0.1/instagram.svg" width="24" height="24" alt="Instagram" style="vertical-align:middle;">
+                    <span style="color:#E1306C; vertical-align:middle; margin-left:5px;">Instagram</span>
+                  </a>
+                  <a href="#/facebook/@meetnmart" style="text-decoration:none; display:inline-block; margin:0 10px;">
+                    <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/3.0.1/facebook.svg" width="24" height="24" alt="Facebook" style="vertical-align:middle;">
+                    <span style="color:#4267B2; vertical-align:middle; margin-left:5px;">Facebook</span>
+                  </a> -->
+                </div>
+                
+                <p>We appreciate your patience and can't wait to transform how you <%= userType.toLowerCase() === 'seller' ? 'sell' : 'shop' %>!</p>
+                
+                <p>See you in the marketplace soon,<br>The <%= app_name %> Team</p>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>

@@ -1,0 +1,24 @@
+<tr>
+  <td style="background-color: #f9fafb; padding: 20px; text-align: center; color: #6b7280; font-size: 12px;">
+    <p>&copy; <%= new Date().getFullYear() %>
+        <%= app_name %>. All rights reserved.</p>
+    <p>
+      If you have any questions, please contact us at
+      <a href="mailto:<%= contact_us_email %>" style="color: #3b82f6;">
+        <%= contact_us_email %>
+      </a>
+    </p>
+
+    
+    <p>
+      <a href="<%= app_url %>/privacy-policy" style="color:#4CAF50; text-decoration:none;">Privacy Policy</a> |
+      <a href="<%= app_url %>/terms-of-service" style="color:#4CAF50; text-decoration:none;">Terms of Service</a>
+    </p>
+
+    <p>To unsubscribe from these emails, <a
+        href="<%= app_url %>/unsubscribe?email=<%= encodeURIComponent(recipientEmail) %>"
+        style="color:#4CAF50; text-decoration:none;">click here</a>.
+    </p>
+
+  </td>
+</tr>
