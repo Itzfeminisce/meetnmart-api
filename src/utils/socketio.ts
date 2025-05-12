@@ -339,6 +339,12 @@ export class SocketIOServer {
     socket.on(CallAction.EscrowRequested, ([data]) => {
       this.handleEscrowRequested(socket, data);
     })
+    socket.on(CallAction.EscrowAccepted, ([data]) => {
+      this.handleEscrowAccepted(socket, data);
+    })
+    socket.on(CallAction.EscrowRejected, ([data]) => {
+      this.handleEscrowRejected(socket, data);
+    })
 
     // Error handling
     socket.on('error', (error) => {
@@ -481,8 +487,6 @@ export class SocketIOServer {
     }
   }
   private async handleEscrowRequested(socket: AuthenticatedSocket, data: any) {
-    console.log("[handleEscrowRequested]", data);
-    
     try {
       // const room = data.room
       // const caller = data.caller
@@ -493,6 +497,42 @@ export class SocketIOServer {
       this.io.to(callerSocketId).emit(CallAction.EscrowRequested, data)
     } catch (error) {
       socketLogger.error('Error in handle escrow requested call', error, {
+        socketId: socket.id,
+        data,
+        userId: socket.userId || 'anonymous',
+        error: error.message
+      });
+    }
+  }
+  private async handleEscrowAccepted(socket: AuthenticatedSocket, data: any) {
+    try {
+      // const room = data.room
+      // const caller = data.caller
+      const receiver = data.receiver
+      const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
+
+      // Notify the seller/reciiver they have a call
+      this.io.to(receiverSocketId).emit(CallAction.EscrowAccepted, data)
+    } catch (error) {
+      socketLogger.error('Error in handle escrow accepted call', error, {
+        socketId: socket.id,
+        data,
+        userId: socket.userId || 'anonymous',
+        error: error.message
+      });
+    }
+  }
+  private async handleEscrowRejected(socket: AuthenticatedSocket, data: any) {
+    try {
+      // const room = data.room
+      // const caller = data.caller
+      const receiver = data.receiver
+      const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
+
+      // Notify the seller/reciiver they have a call
+      this.io.to(receiverSocketId).emit(CallAction.EscrowRejected, data)
+    } catch (error) {
+      socketLogger.error('Error in handle escrow rejected call', error, {
         socketId: socket.id,
         data,
         userId: socket.userId || 'anonymous',
