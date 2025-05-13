@@ -4,9 +4,9 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { logger } from '../logger';
 import { cacheService, ICacheService } from './cacheUtils';
-import { verifyToken } from './jwtUtils';
 import { AppEvent, CallAction } from '../events';
 import { updateUserProfileById } from '../functions';
+import { storeTransaction, updateTransaction, updateWallet } from '../routes';
 
 const socketLogger = logger;
 
@@ -261,9 +261,9 @@ export class SocketIOServer {
       });
 
       // Join user's private room if authenticated
-      if (authenticatedSocket.userId) {
-        this.joinUserRoom(authenticatedSocket);
-      }
+      // if (authenticatedSocket.userId) {
+      //   this.joinUserRoom(authenticatedSocket);
+      // }
 
       // Setup event handlers
       this.setupSocketEvents(authenticatedSocket);
@@ -280,17 +280,17 @@ export class SocketIOServer {
     });
   }
 
-  private joinUserRoom(socket: AuthenticatedSocket) {
-    if (!socket.userId) return;
+  // private joinUserRoom(socket: AuthenticatedSocket) {
+  //   if (!socket.userId) return;
 
-    const userRoom = `user:${socket.userId}`;
-    socket.join(userRoom);
-    socketLogger.debug('User joined private room', {
-      socketId: socket.id,
-      userId: socket.userId,
-      room: userRoom
-    });
-  }
+  //   const userRoom = `user:${socket.userId}`;
+  //   socket.join(userRoom);
+  //   socketLogger.debug('User joined private room', {
+  //     socketId: socket.id,
+  //     userId: socket.userId,
+  //     room: userRoom
+  //   });
+  // }
 
   private setupSocketEvents(socket: AuthenticatedSocket) {
     // Debug event to confirm connection
@@ -311,13 +311,13 @@ export class SocketIOServer {
     });
 
     // Room subscription
-    socket.on('subscribe', (room: string) => {
-      this.handleRoomSubscription(socket, room);
-    });
+    // socket.on('subscribe', (room: string) => {
+    //   this.handleRoomSubscription(socket, room);
+    // });
 
-    socket.on('unsubscribe', (room: string) => {
-      this.handleRoomUnsubscription(socket, room);
-    });
+    // socket.on('unsubscribe', (room: string) => {
+    //   this.handleRoomUnsubscription(socket, room);
+    // });
 
     // socket.on(CallAction.Incoming, (data) => {
     //   this.handleIncomingCall(socket, data);
@@ -356,54 +356,54 @@ export class SocketIOServer {
     });
   }
 
-  private handleRoomSubscription(socket: AuthenticatedSocket, room: string) {
-    try {
-      if (this.isValidRoom(room, socket.userId)) {
-        socket.join(room);
-        socketLogger.debug('User subscribed to room', {
-          socketId: socket.id,
-          userId: socket.userId || 'anonymous',
-          room
-        });
-        // Confirm subscription to client
-        socket.emit('subscribed', { room });
-      } else {
-        socketLogger.warn('Unauthorized room subscription attempt', {
-          socketId: socket.id,
-          userId: socket.userId || 'anonymous',
-          room
-        });
-        socket.emit('subscribe_error', { room, error: 'Unauthorized' });
-      }
-    } catch (error) {
-      socketLogger.error('Error in room subscription', error, {
-        socketId: socket.id,
-        userId: socket.userId || 'anonymous',
-        room,
-        error: error.message
-      });
-      socket.emit('subscribe_error', { room, error: 'Internal error' });
-    }
-  }
+  // private handleRoomSubscription(socket: AuthenticatedSocket, room: string) {
+  //   try {
+  //     if (this.isValidRoom(room, socket.userId)) {
+  //       socket.join(room);
+  //       socketLogger.debug('User subscribed to room', {
+  //         socketId: socket.id,
+  //         userId: socket.userId || 'anonymous',
+  //         room
+  //       });
+  //       // Confirm subscription to client
+  //       socket.emit('subscribed', { room });
+  //     } else {
+  //       socketLogger.warn('Unauthorized room subscription attempt', {
+  //         socketId: socket.id,
+  //         userId: socket.userId || 'anonymous',
+  //         room
+  //       });
+  //       socket.emit('subscribe_error', { room, error: 'Unauthorized' });
+  //     }
+  //   } catch (error) {
+  //     socketLogger.error('Error in room subscription', error, {
+  //       socketId: socket.id,
+  //       userId: socket.userId || 'anonymous',
+  //       room,
+  //       error: error.message
+  //     });
+  //     socket.emit('subscribe_error', { room, error: 'Internal error' });
+  //   }
+  // }
 
-  private handleRoomUnsubscription(socket: AuthenticatedSocket, room: string) {
-    try {
-      socket.leave(room);
-      socketLogger.debug('User unsubscribed from room', {
-        socketId: socket.id,
-        userId: socket.userId || 'anonymous',
-        room
-      });
-      socket.emit('unsubscribed', { room });
-    } catch (error) {
-      socketLogger.error('Error in room unsubscription', error, {
-        socketId: socket.id,
-        userId: socket.userId || 'anonymous',
-        room,
-        error: error.message
-      });
-    }
-  }
+  // private handleRoomUnsubscription(socket: AuthenticatedSocket, room: string) {
+  //   try {
+  //     socket.leave(room);
+  //     socketLogger.debug('User unsubscribed from room', {
+  //       socketId: socket.id,
+  //       userId: socket.userId || 'anonymous',
+  //       room
+  //     });
+  //     socket.emit('unsubscribed', { room });
+  //   } catch (error) {
+  //     socketLogger.error('Error in room unsubscription', error, {
+  //       socketId: socket.id,
+  //       userId: socket.userId || 'anonymous',
+  //       room,
+  //       error: error.message
+  //     });
+  //   }
+  // }
 
   private async handleDisconnect(socket: AuthenticatedSocket) {
     const cacheKey = `${this.config.cache?.prefix}auth:${socket?.userId}`;
@@ -414,8 +414,6 @@ export class SocketIOServer {
 
   private async handleOutgoingCall(socket: AuthenticatedSocket, data: any) {
     try {
-      // const room = data.room
-      // const caller = data.caller
       const receiver = data.receiver
 
       const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
@@ -433,8 +431,6 @@ export class SocketIOServer {
   }
   private async handleEndCall(socket: AuthenticatedSocket, data: any) {
     try {
-      // const room = data.room
-      // const caller = data.caller
       const receiver = data.receiver
 
       const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
@@ -452,8 +448,6 @@ export class SocketIOServer {
   }
   private async handleRejectCall(socket: AuthenticatedSocket, data: any) {
     try {
-      // const room = data.room
-      // const caller = data.caller
       const caller = data.caller
       const callerSocketId = await this.getUserByAuthTokenFormCache(caller.id)
 
@@ -470,8 +464,6 @@ export class SocketIOServer {
   }
   private async handleAcceptedCall(socket: AuthenticatedSocket, data: any) {
     try {
-      // const room = data.room
-      // const caller = data.caller
       const caller = data.caller
       const callerSocketId = await this.getUserByAuthTokenFormCache(caller.id)
 
@@ -486,80 +478,84 @@ export class SocketIOServer {
       });
     }
   }
-  private async handleEscrowRequested(socket: AuthenticatedSocket, data: any) {
+  private async handleEscrowRequested(socket: AuthenticatedSocket, payload: EscrowData) {
     try {
-      // const room = data.room
-      // const caller = data.caller
-      const caller = data.caller
+
+      const caller = payload.caller
       const callerSocketId = await this.getUserByAuthTokenFormCache(caller.id)
 
+      const reference = await storeTransaction(payload)
+
+      payload.data.reference = reference
+
+      console.log("[handleEscrowRequested]#reference",{payload});
+      
+
       // Notify the seller/reciiver they have a call
-      this.io.to(callerSocketId).emit(CallAction.EscrowRequested, data)
+      this.io.to(callerSocketId).emit(CallAction.EscrowRequested, payload)
     } catch (error) {
       socketLogger.error('Error in handle escrow requested call', error, {
         socketId: socket.id,
-        data,
+        payload,
         userId: socket.userId || 'anonymous',
         error: error.message
       });
     }
   }
-  private async handleEscrowAccepted(socket: AuthenticatedSocket, data: any) {
+  private async handleEscrowAccepted(socket: AuthenticatedSocket, payload: EscrowData) {
     try {
+      if(!payload.data.reference) throw new Error("[handleEscrowAccepted]#payload.reference not found")
       // const room = data.room
       // const caller = data.caller
-      const receiver = data.receiver
+      const receiver = payload.receiver
       const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
 
+      await updateTransaction(payload.data.reference, {
+        status: "held"
+      })
+
+      // Update escrowed balance
+      await updateWallet(receiver.id, {escrowed_balance: payload.data.amount})
+      
       // Notify the seller/reciiver they have a call
-      this.io.to(receiverSocketId).emit(CallAction.EscrowAccepted, data)
+      this.io.to(receiverSocketId).emit(CallAction.EscrowAccepted, payload)
     } catch (error) {
       socketLogger.error('Error in handle escrow accepted call', error, {
         socketId: socket.id,
-        data,
+        payload,
         userId: socket.userId || 'anonymous',
         error: error.message
       });
     }
   }
-  private async handleEscrowRejected(socket: AuthenticatedSocket, data: any) {
+  private async handleEscrowRejected(socket: AuthenticatedSocket, payload: EscrowData) {
+    console.log("[handleEscrowRejected]#payload", {payload});
     try {
-      // const room = data.room
-      // const caller = data.caller
-      const receiver = data.receiver
-      const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
+      if(!payload.data.reference) throw new Error("[handleEscrowRejected]#payload.reference not found")
 
+        const receiver = payload.receiver
+      const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
+      
+      await updateTransaction(payload.data.reference, {
+        status: "rejected"
+      })
       // Notify the seller/reciiver they have a call
-      this.io.to(receiverSocketId).emit(CallAction.EscrowRejected, data)
+      this.io.to(receiverSocketId).emit(CallAction.EscrowRejected, payload)
     } catch (error) {
       socketLogger.error('Error in handle escrow rejected call', error, {
         socketId: socket.id,
-        data,
+        payload,
         userId: socket.userId || 'anonymous',
         error: error.message
       });
     }
   }
 
-  private isValidRoom(room: string, userId?: string): boolean {
-    if (room.startsWith('public:')) return true;
-    if (userId && room === `user:${userId}`) return true;
-    return false;
-  }
-
-  // Public methods
-  public sendToUser(userId: string, event: string, data: any) {
-    try {
-      this.io.to(`user:${userId}`).emit(event, data);
-      socketLogger.debug('Message sent to user', { userId, event });
-    } catch (error) {
-      socketLogger.error('Error sending message to user', error, {
-        userId,
-        event,
-        error: error.message
-      });
-    }
-  }
+  // private isValidRoom(room: string, userId?: string): boolean {
+  //   if (room.startsWith('public:')) return true;
+  //   if (userId && room === `user:${userId}`) return true;
+  //   return false;
+  // }
 
   public broadcast(event: string, data: any, room?: string) {
     try {

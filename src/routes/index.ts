@@ -65,3 +65,45 @@ export async function notifyWaitlistUser(req: Request) {
 
     return true;
 }
+
+
+export async function storeTransaction(payload: EscrowData) {
+    const reference = payload.data.reference || `ORDER_${Date.now()}M`
+    const { error } = await supabaseClient.from("transactions").insert({
+        buyer_id: payload.caller.id,
+        seller_id: payload.receiver.id,
+        amount: payload.data.amount,
+        reference,
+        description: JSON.stringify({
+            itemTitle: payload.data.itemTitle,
+            itemDescription: payload.data.itemDescription,
+            ...payload.data
+        }),
+    })
+
+    if (error) throw new Error(`[storeTransaction#error]: ${error.message}`)
+    console.info(`[storeTransaction#stored]`)
+
+    return reference;
+}
+
+
+export async function updateTransaction(reference: string, payload: { status: EscrowStatus }) {
+    const { error } = await supabaseClient.from("transactions").update({
+        status: payload.status
+    }).eq('reference', reference)
+
+    if (error) throw new Error(`[updateTransaction#error]: ${error.message}`)
+    console.info(`[updateTransaction#updated]`)
+}
+
+export async function updateWallet(userId: string, payload: { balance?: number; escrowed_balance?: number }) {
+    const { error } = await supabaseClient.rpc('update_wallet_balance', {
+        p_user_id: userId,
+        p_balance_delta: payload.balance ?? 0,
+        p_escrowed_delta: payload.escrowed_balance ?? 0,
+    });
+
+    if (error) throw new Error(`[updateWallet#error]: ${error.message}`);
+    console.info(`[updateWallet#updated]`);
+}
