@@ -15,6 +15,7 @@ type EscrowData = CallData<{
     itemTitle: string;
     itemDescription: string;
     reference?: string;
+    call_session_id: string;
     [key: string]: any;
 }>
 

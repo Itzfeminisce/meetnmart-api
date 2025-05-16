@@ -6,7 +6,7 @@ import { logger } from '../logger';
 import { cacheService, ICacheService } from './cacheUtils';
 import { AppEvent, CallAction } from '../events';
 import { updateUserProfileById } from '../functions';
-import { storeTransaction, updateTransaction, updateWallet } from '../routes';
+import { storeNewCallSession, storeTransaction, updateCallSession, updateTransaction, updateWallet } from '../routes';
 
 const socketLogger = logger;
 
@@ -138,7 +138,7 @@ export class SocketIOServer {
       // Cache the successful authentication
       (socket as AuthenticatedSocket).userId = token;
       await this.cacheService.set(cacheKey, socket.id, this.config.cache?.ttl);
-      await updateUserProfileById(token, {is_online: true})
+      await updateUserProfileById(token, { is_online: true })
 
       socketLogger.debug('User authenticated with JWT', {
         socketId: socket.id,
@@ -280,18 +280,6 @@ export class SocketIOServer {
     });
   }
 
-  // private joinUserRoom(socket: AuthenticatedSocket) {
-  //   if (!socket.userId) return;
-
-  //   const userRoom = `user:${socket.userId}`;
-  //   socket.join(userRoom);
-  //   socketLogger.debug('User joined private room', {
-  //     socketId: socket.id,
-  //     userId: socket.userId,
-  //     room: userRoom
-  //   });
-  // }
-
   private setupSocketEvents(socket: AuthenticatedSocket) {
     // Debug event to confirm connection
     socket.emit('connection_confirmed', {
@@ -309,20 +297,6 @@ export class SocketIOServer {
         socket.emit('pong', { timestamp: Date.now() });
       }
     });
-
-    // Room subscription
-    // socket.on('subscribe', (room: string) => {
-    //   this.handleRoomSubscription(socket, room);
-    // });
-
-    // socket.on('unsubscribe', (room: string) => {
-    //   this.handleRoomUnsubscription(socket, room);
-    // });
-
-    // socket.on(CallAction.Incoming, (data) => {
-    //   this.handleIncomingCall(socket, data);
-    // })
-
 
     socket.on(CallAction.Outgoing, ([data]) => {
       this.handleOutgoingCall(socket, data);
@@ -356,60 +330,11 @@ export class SocketIOServer {
     });
   }
 
-  // private handleRoomSubscription(socket: AuthenticatedSocket, room: string) {
-  //   try {
-  //     if (this.isValidRoom(room, socket.userId)) {
-  //       socket.join(room);
-  //       socketLogger.debug('User subscribed to room', {
-  //         socketId: socket.id,
-  //         userId: socket.userId || 'anonymous',
-  //         room
-  //       });
-  //       // Confirm subscription to client
-  //       socket.emit('subscribed', { room });
-  //     } else {
-  //       socketLogger.warn('Unauthorized room subscription attempt', {
-  //         socketId: socket.id,
-  //         userId: socket.userId || 'anonymous',
-  //         room
-  //       });
-  //       socket.emit('subscribe_error', { room, error: 'Unauthorized' });
-  //     }
-  //   } catch (error) {
-  //     socketLogger.error('Error in room subscription', error, {
-  //       socketId: socket.id,
-  //       userId: socket.userId || 'anonymous',
-  //       room,
-  //       error: error.message
-  //     });
-  //     socket.emit('subscribe_error', { room, error: 'Internal error' });
-  //   }
-  // }
-
-  // private handleRoomUnsubscription(socket: AuthenticatedSocket, room: string) {
-  //   try {
-  //     socket.leave(room);
-  //     socketLogger.debug('User unsubscribed from room', {
-  //       socketId: socket.id,
-  //       userId: socket.userId || 'anonymous',
-  //       room
-  //     });
-  //     socket.emit('unsubscribed', { room });
-  //   } catch (error) {
-  //     socketLogger.error('Error in room unsubscription', error, {
-  //       socketId: socket.id,
-  //       userId: socket.userId || 'anonymous',
-  //       room,
-  //       error: error.message
-  //     });
-  //   }
-  // }
-
   private async handleDisconnect(socket: AuthenticatedSocket) {
     const cacheKey = `${this.config.cache?.prefix}auth:${socket?.userId}`;
     await this.cacheService.del(cacheKey);
-    await updateUserProfileById(socket?.userId, {is_online: false})
-    socket.emit(AppEvent.DISCONNECT, {userId: socket.id})
+    await updateUserProfileById(socket?.userId, { is_online: false })
+    socket.emit(AppEvent.DISCONNECT, { userId: socket.id })
   }
 
   private async handleOutgoingCall(socket: AuthenticatedSocket, data: any) {
@@ -429,18 +354,25 @@ export class SocketIOServer {
       });
     }
   }
-  private async handleEndCall(socket: AuthenticatedSocket, data: any) {
+  private async handleEndCall(socket: AuthenticatedSocket, payload: CallData<{ callSessionId: string }>) {
     try {
-      const receiver = data.receiver
+      // const receiver = payload.receiver
 
-      const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
+      // const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
 
-      // Notify the seller/reciiver they have a call
-      this.io.to(receiverSocketId).emit(CallAction.Ended, data)
+      if(socket.userId === payload.caller.id){
+        // End call officially if the caller ends the call
+        await updateCallSession(payload.data.callSessionId, {
+          ended_at: new Date()
+        })
+      }
+
+      // Notify everyone on the call
+      socket.emit(CallAction.Ended, payload)
     } catch (error) {
       socketLogger.error('Error in handle end call', error, {
         socketId: socket.id,
-        data,
+        payload,
         userId: socket.userId || 'anonymous',
         error: error.message
       });
@@ -462,17 +394,22 @@ export class SocketIOServer {
       });
     }
   }
-  private async handleAcceptedCall(socket: AuthenticatedSocket, data: any) {
+  private async handleAcceptedCall(socket: AuthenticatedSocket, payload: CallData) {
     try {
-      const caller = data.caller
+      const caller = payload.caller
+      const receiver = payload.receiver
       const callerSocketId = await this.getUserByAuthTokenFormCache(caller.id)
+      const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
+
+      const callSessionId = await storeNewCallSession(payload)
 
       // Notify the seller/reciiver they have a call
-      this.io.to(callerSocketId).emit(CallAction.Accepted, data)
+      this.io.to(callerSocketId).emit(CallAction.Accepted, payload, callSessionId)
+      this.io.to(receiverSocketId).emit(CallAction.Accepted, payload, callSessionId)
     } catch (error) {
       socketLogger.error('Error in handle accept call', error, {
         socketId: socket.id,
-        data,
+        payload,
         userId: socket.userId || 'anonymous',
         error: error.message
       });
@@ -480,6 +417,7 @@ export class SocketIOServer {
   }
   private async handleEscrowRequested(socket: AuthenticatedSocket, payload: EscrowData) {
     try {
+      console.log("[handleEscrowRequested]#reference", { payload });
 
       const caller = payload.caller
       const callerSocketId = await this.getUserByAuthTokenFormCache(caller.id)
@@ -487,9 +425,6 @@ export class SocketIOServer {
       const reference = await storeTransaction(payload)
 
       payload.data.reference = reference
-
-      console.log("[handleEscrowRequested]#reference",{payload});
-      
 
       // Notify the seller/reciiver they have a call
       this.io.to(callerSocketId).emit(CallAction.EscrowRequested, payload)
@@ -504,19 +439,21 @@ export class SocketIOServer {
   }
   private async handleEscrowAccepted(socket: AuthenticatedSocket, payload: EscrowData) {
     try {
-      if(!payload.data.reference) throw new Error("[handleEscrowAccepted]#payload.reference not found")
-      // const room = data.room
-      // const caller = data.caller
+      if (!payload.data.reference) throw new Error("[handleEscrowAccepted]#payload.reference not found")
+      if (!payload.data.callSessionId) throw new Error("[handleEscrowAccepted]#payload.callSessionId not found")
+    
+        
       const receiver = payload.receiver
       const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
 
       await updateTransaction(payload.data.reference, {
-        status: "held"
+        status: "held",
+        call_session_id: payload.data.callSessionId
       })
 
       // Update escrowed balance
-      await updateWallet(receiver.id, {escrowed_balance: payload.data.amount})
-      
+      await updateWallet(receiver.id, { escrowed_balance: payload.data.amount })
+
       // Notify the seller/reciiver they have a call
       this.io.to(receiverSocketId).emit(CallAction.EscrowAccepted, payload)
     } catch (error) {
@@ -529,15 +466,18 @@ export class SocketIOServer {
     }
   }
   private async handleEscrowRejected(socket: AuthenticatedSocket, payload: EscrowData) {
-    console.log("[handleEscrowRejected]#payload", {payload});
-    try {
-      if(!payload.data.reference) throw new Error("[handleEscrowRejected]#payload.reference not found")
+    console.log("[handleEscrowRejected]#payload", { payload });
 
-        const receiver = payload.receiver
+    try {
+      if (!payload.data.reference) throw new Error("[handleEscrowRejected]#payload.reference not found")
+      if (!payload.data.callSessionId) throw new Error("[handleEscrowRejected]#payload.callSessionId not found")
+
+      const receiver = payload.receiver
       const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
-      
+
       await updateTransaction(payload.data.reference, {
-        status: "rejected"
+        status: "rejected",
+        call_session_id: payload.data.callSessionId
       })
       // Notify the seller/reciiver they have a call
       this.io.to(receiverSocketId).emit(CallAction.EscrowRejected, payload)
@@ -551,11 +491,6 @@ export class SocketIOServer {
     }
   }
 
-  // private isValidRoom(room: string, userId?: string): boolean {
-  //   if (room.startsWith('public:')) return true;
-  //   if (userId && room === `user:${userId}`) return true;
-  //   return false;
-  // }
 
   public broadcast(event: string, data: any, room?: string) {
     try {

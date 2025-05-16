@@ -18,10 +18,15 @@ const port = process.env.PORT || 8081;
 
 // Define allowed origins with more flexibility
 const allowedOrigins = [
-  process.env.APP_URL || 'http://localhost:3000',
-  'http://localhost:3001',
+  ...(getEnvVar("NODE_ENV") === 'development' ? [
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ]:[]),
+  process.env.APP_URL ,
   'https://dev.meetnmart.com',
   'https://meetnmart.com',
+  'https://www.meetnmart.com',
+  'https://www.dev.meetnmart.com',
   // Add any other domains that need access
 ];
 

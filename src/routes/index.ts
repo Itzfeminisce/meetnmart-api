@@ -68,17 +68,14 @@ export async function notifyWaitlistUser(req: Request) {
 
 
 export async function storeTransaction(payload: EscrowData) {
-    const reference = payload.data.reference || `ORDER_${Date.now()}M`
+    console.info(`[storeTransaction#stored]`, {payload})
+    const { data: { amount, call_session_id, reference = `ORDER_${Date.now()}M`, ...metadata } } = payload
+
     const { error } = await supabaseClient.from("transactions").insert({
-        buyer_id: payload.caller.id,
-        seller_id: payload.receiver.id,
-        amount: payload.data.amount,
+        call_session_id,
+        amount,
         reference,
-        description: JSON.stringify({
-            itemTitle: payload.data.itemTitle,
-            itemDescription: payload.data.itemDescription,
-            ...payload.data
-        }),
+        description: JSON.stringify({ metadata }),
     })
 
     if (error) throw new Error(`[storeTransaction#error]: ${error.message}`)
@@ -88,10 +85,28 @@ export async function storeTransaction(payload: EscrowData) {
 }
 
 
-export async function updateTransaction(reference: string, payload: { status: EscrowStatus }) {
-    const { error } = await supabaseClient.from("transactions").update({
-        status: payload.status
-    }).eq('reference', reference)
+export async function storeNewCallSession(payload: CallData<{ call_session_id: string }>): Promise<string> {
+    const { error, data } = await supabaseClient.from("call_sessions").insert({
+        buyer_id: payload.caller.id,
+        seller_id: payload.receiver.id,
+        started_at: new Date()
+    }).select("id")
+
+    if (error) throw new Error(`[storeNewCallSession#error]: ${error.message}`)
+
+    return data.at(0).id;
+}
+
+export async function updateCallSession(sessionId: string, payload: { ended_at?: Date, transaction_id?: string }): Promise<void> {
+    const { error, data } = await supabaseClient.from("call_sessions").update(payload).eq("id", sessionId)
+
+    if (error) throw new Error(`[updateCallSession#error]: ${error.message}`)
+    console.info(`[updateCallSession#stored]`, data)
+}
+
+
+export async function updateTransaction(reference: string, payload: { status: EscrowStatus, call_session_id?: string; }): Promise<void> {
+    const { error} = await supabaseClient.from("transactions").update(payload).eq('reference', reference)
 
     if (error) throw new Error(`[updateTransaction#error]: ${error.message}`)
     console.info(`[updateTransaction#updated]`)
