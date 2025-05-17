@@ -3,6 +3,7 @@ import { AccessToken } from 'livekit-server-sdk';
 import { getEnvVar } from "../utils/env";
 import { mailerV2 } from "../utils/mailer_v2";
 import { supabaseClient } from "../utils/supabase";
+import { CallData, EscrowData, EscrowStatus } from "../globals";
 
 
 export async function createLivekitToken(req: Request) {
@@ -122,3 +123,39 @@ export async function updateWallet(userId: string, payload: { balance?: number; 
     if (error) throw new Error(`[updateWallet#error]: ${error.message}`);
     console.info(`[updateWallet#updated]`);
 }
+
+
+export const releaseFund = async (trxId: string, userId: string, feedback?: string): Promise<{
+    id: string;
+    amount: number;
+    status: EscrowStatus;
+    user_id: string;
+}> => {
+    try {
+        // Call the custom RPC function to handle the fund release
+        const { data, error } = await supabaseClient.rpc('release_escrowed_funds', {
+            p_transaction_id: trxId,
+            p_user_id: userId,
+            p_feedback: feedback
+        });
+
+        if (error) {
+            throw new Error(`Failed to release funds: ${error.message}`);
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Release fund error:', error);
+        throw error;
+    }
+};
+
+export async function fetchUserById(userId: string) {
+    const { data, error } = await supabaseClient.auth.admin.getUserById(userId);
+  
+    if (error) {
+      throw new Error(`Error fetching user: ${error.message}`);
+    }
+  
+    return data.user;
+  }

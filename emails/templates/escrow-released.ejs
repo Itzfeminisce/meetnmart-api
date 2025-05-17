@@ -1,0 +1,84 @@
+<head>
+  
+  <%- partial('escrow-released-style') %>
+</head>
+<div class="email-container">
+  <div class="email-header">
+    <h1>Escrow Released!</h1>
+    <div class="transaction-reference">Reference: #<%= reference %>
+    </div>
+  </div>
+
+  <div class="email-content">
+    <div class="success-icon">
+      <img src="<%- app_logo_url %>" alt="Success" width="64" height="64">
+    </div>
+
+    <p class="greeting">Good news <%= fullName %>!</p>
+
+    <p>The funds for your transaction have been successfully released to your available balance.</p>
+
+    <div class="transaction-details">
+      <div class="transaction-card">
+        <h2>
+          <%= itemTitle %>
+        </h2>
+        <p class="description">
+          <%= itemDescription %>
+        </p>
+
+        <div class="amount-container">
+          <div class="amount-label">Amount Released:</div>
+          <div class="amount-value">
+            <%= formatCurrency(amount) %>
+          </div>
+        </div>
+
+        <div class="status-container">
+          <div class="status-change">
+            <span class="status-label">Status:</span>
+            <span class="old-status">
+              <%= oldStatus %>
+            </span>
+            <span class="arrow"> → </span>
+            <span class="new-status">
+              <%= newStatus %>
+            </span>
+          </div>
+        </div>
+
+        <div class="status-container">
+          <div class="status-change">
+            <span class="status-label">Buyer:</span>
+            <span class="description">
+              <%= buyerName %>
+            </span>
+          </div>
+        </div>
+
+        <% if (feedback && feedback.trim() !=='' ) { %>
+          <div class="feedback-container">
+            <h3>Transaction Feedback:</h3>
+            <div class="feedback-text">
+              <%= feedback %>
+            </div>
+          </div>
+          <% } %>
+      </div>
+    </div>
+
+    <div class="next-steps">
+      <h3>What's Next?</h3>
+      <p>The funds are now available in your wallet balance. You can:</p>
+      <ul>
+        <li>Use these funds for future purchases</li>
+        <li>Withdraw them to your linked bank account</li>
+        <li>View your transaction history for complete details</li>
+      </ul>
+    </div>
+
+    <div class="cta-container">
+      <a href="<%- app_url %>/seller-dashboard" class="cta-button">View Your Wallet</a>
+    </div>
+  </div>
+</div>

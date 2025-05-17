@@ -275,7 +275,7 @@ class MailerV2 {
       const platformName = await this.getPlatformName();
       const appUrl = await this.getAppUrl();
       const defaultData = this.createDefaultTemplateData(platformName, appUrl);
-      const html = await this.renderTemplate(config.template, { ...defaultData, ...config }, config.layout);
+      const html = await this.renderTemplate(config.template, { ...defaultData, ...config}, config.layout);
 
       return this.sendEmail({
         to: config.to,
@@ -314,15 +314,10 @@ class MailerV2 {
     };
   }
 
-  public async sendEmailWithRetry(options: Mail.Options): Promise<SentMessageInfo> {
-    return this.retry(
-      () => this.sendEmail(options),
-      3,
-      1000,
-      2
-    );
+  public async sendEmailWithRetry<T>(fn: () => Promise<T>): Promise<T> {
+    return this.retry(fn, 3, 1000, 2);
   }
-
+  
   /* ------------------------- Template Rendering Methods ------------------------- */
 
   private async renderTemplate(template: string, data: TemplateData, layout = 'base'): Promise<string> {
@@ -390,6 +385,12 @@ class MailerV2 {
       include: (file: string, localData = {}) => this.renderPartial(file, { ...data, ...localData }),
       component: (name: string, localData = {}) => this.renderComponent(name, { ...data, ...localData }),
       partial: (name: string, localData = {}) => this.renderLayoutPartial(name, { ...data, ...localData }),
+      formatCurrency: (amount: number, currency: string = 'NGN') => {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: currency
+        }).format(amount);
+      }
     };
 
     const templateContent = fs.readFileSync(templatePath, 'utf-8');

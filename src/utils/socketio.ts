@@ -6,7 +6,9 @@ import { logger } from '../logger';
 import { cacheService, ICacheService } from './cacheUtils';
 import { AppEvent, CallAction } from '../events';
 import { updateUserProfileById } from '../functions';
-import { storeNewCallSession, storeTransaction, updateCallSession, updateTransaction, updateWallet } from '../routes';
+import { fetchUserById, releaseFund, storeNewCallSession, storeTransaction, updateCallSession, updateTransaction, updateWallet } from '../routes';
+import { CallData, EscrowData, EscrowReleasedData } from '../globals';
+import { mailerV2 } from './mailer_v2';
 
 const socketLogger = logger;
 
@@ -319,6 +321,9 @@ export class SocketIOServer {
     socket.on(CallAction.EscrowRejected, ([data]) => {
       this.handleEscrowRejected(socket, data);
     })
+    socket.on(CallAction.EscrowReleased, ([data]) => {
+      this.handleEscrowReleased(socket, data);
+    })
 
     // Error handling
     socket.on('error', (error) => {
@@ -360,7 +365,7 @@ export class SocketIOServer {
 
       // const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
 
-      if(socket.userId === payload.caller.id){
+      if (socket.userId === payload.caller.id) {
         // End call officially if the caller ends the call
         await updateCallSession(payload.data.callSessionId, {
           ended_at: new Date()
@@ -437,12 +442,67 @@ export class SocketIOServer {
       });
     }
   }
+  private async handleEscrowReleased(socket: AuthenticatedSocket, payload: EscrowReleasedData) {
+    // The buyer had acknoleged and satistfied with product, now releasing payment to seller
+    // buyer is the caller, seller is the receiver
+    try {
+      console.log("[handleEscrowReleased]#payload");
+
+      // const caller = payload.caller
+      // const receiver = payload.receiver
+
+      // const buyerSocketId = await this.getUserByAuthTokenFormCache()
+
+      const sellerData = await fetchUserById(payload.receiver.id)
+      const escrow = await releaseFund(payload.data.transaction_id, payload.receiver.id, payload.data.feedback)
+
+
+      await mailerV2.sendEmailWithRetry(
+        () => mailerV2.sendTemplateEmail({
+          subject: "Escrow Released",
+          template: "escrow-released",
+          to: sellerData.email, // || sellerData.phone
+
+          reference: payload.data.reference,
+          itemTitle: payload.data.itemTitle,
+          itemDescription: payload.data.itemDescription,
+          amount: escrow.amount,
+          oldStatus: payload.data.status,
+          newStatus: escrow.status,
+          feedback: payload.data.feedback,
+          fullName: payload.data.seller_name,
+          buyerName: payload.data.buyer_name
+        })
+      )
+
+      socket.emit(CallAction.EscrowReleased, {
+        data: {
+          amount: escrow.amount,
+          feedback: payload.data.feedback
+        },
+        status: "success",
+        message: "Payment has been released and notification sent to seller."
+      })
+
+    } catch (error) {
+      socket.emit(CallAction.EscrowReleased, {
+        status: "error",
+        message: `Notification could not be delivered after several attempts. We will try again shortly.`
+      })
+      socketLogger.error('Error in handle escrow released call', error, {
+        socketId: socket.id,
+        payload,
+        userId: socket.userId || 'anonymous',
+        error: error.message
+      });
+    }
+  }
   private async handleEscrowAccepted(socket: AuthenticatedSocket, payload: EscrowData) {
     try {
       if (!payload.data.reference) throw new Error("[handleEscrowAccepted]#payload.reference not found")
       if (!payload.data.callSessionId) throw new Error("[handleEscrowAccepted]#payload.callSessionId not found")
-    
-        
+
+
       const receiver = payload.receiver
       const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
 

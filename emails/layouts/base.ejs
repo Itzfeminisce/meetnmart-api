@@ -1,26 +1,33 @@
 <!DOCTYPE html>
 <html lang="en-US">
+
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><%= subject || app_name %></title>
-  <%- partial('styles') %>
+  <title>
+    <%= subject || app_name %>
+  </title>
+  <%- partial('base-theme') %>
+    <%- partial('styles') %>
+
 </head>
+
 <body style="margin: 0; padding: 0;">
   <table border="0" cellpadding="0" cellspacing="0" width="100%">
     <tr>
       <td align="center" valign="top">
         <table class="container" border="0" cellpadding="0" cellspacing="0" width="600">
           <%- partial('header') %>
-          <tr>
-            <td class="content-wrapper" style="padding: 20px;">
-              <%- typeof content !== 'undefined' ? content : '' %>
-            </td>
-          </tr>
-          <%- partial('footer') %>
+            <tr>
+              <td class="content-wrapper" style="padding: 20px;">
+                <%- typeof content !=='undefined' ? content : '' %>
+              </td>
+            </tr>
+            <%- partial('footer') %>
         </table>
       </td>
     </tr>
   </table>
 </body>
+
 </html>
