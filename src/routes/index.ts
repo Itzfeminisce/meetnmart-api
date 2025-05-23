@@ -69,7 +69,7 @@ export async function notifyWaitlistUser(req: Request) {
 
 
 export async function storeTransaction(payload: EscrowData) {
-    console.info(`[storeTransaction#stored]`, {payload})
+    console.info(`[storeTransaction#stored]`, { payload })
     const { data: { amount, call_session_id, reference = `ORDER_${Date.now()}M`, ...metadata } } = payload
 
     const { error } = await supabaseClient.from("transactions").insert({
@@ -107,7 +107,7 @@ export async function updateCallSession(sessionId: string, payload: { ended_at?:
 
 
 export async function updateTransaction(reference: string, payload: { status: EscrowStatus, call_session_id?: string; }): Promise<void> {
-    const { error} = await supabaseClient.from("transactions").update(payload).eq('reference', reference)
+    const { error } = await supabaseClient.from("transactions").update(payload).eq('reference', reference)
 
     if (error) throw new Error(`[updateTransaction#error]: ${error.message}`)
     console.info(`[updateTransaction#updated]`)
@@ -152,10 +152,11 @@ export const releaseFund = async (trxId: string, userId: string, feedback?: stri
 
 export async function fetchUserById(userId: string) {
     const { data, error } = await supabaseClient.auth.admin.getUserById(userId);
-  
+
     if (error) {
-      throw new Error(`Error fetching user: ${error.message}`);
+        throw new Error(`Error fetching user: ${error.message}`);
     }
-  
+
     return data.user;
-  }
+}
+

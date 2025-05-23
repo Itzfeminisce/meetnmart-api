@@ -1,16 +1,16 @@
-interface CallParticipant {
+export interface CallParticipant {
     id: string;
     name: string;
 }
 
-interface CallData<TData = any, TReceiver = CallParticipant> {
+export interface CallData<TData = any, TReceiver = CallParticipant> {
     room: string;
     caller: CallParticipant;
     receiver: TReceiver;
     data?: TData
 }
 
-type EscrowData = CallData<{
+export type EscrowData = CallData<{
     amount: number,
     itemTitle: string;
     itemDescription: string;
@@ -19,7 +19,7 @@ type EscrowData = CallData<{
     [key: string]: any;
 }>
 
-interface EscrowTransactionDetails {
+export interface EscrowTransactionDetails {
     amount: number;
     itemDescription: string;
     itemTitle: string;
@@ -44,9 +44,69 @@ interface EscrowTransactionDetails {
   }
 
 
-type EscrowReleasedData = CallData<EscrowTransactionDetails>
+export type EscrowReleasedData = CallData<EscrowTransactionDetails>
 
 
   
 
-export type EscrowStatus = "initiated" | "pending" | "held" | "delivered" | "confirmed" | "released" | "disputed" | "refunded" | "rejected"
+type EscrowStatus = "initiated" | "pending" | "held" | "delivered" | "confirmed" | "released" | "disputed" | "refunded" | "rejected"
+
+
+export type NotificationType = 
+  | 'general' 
+  | 'call' 
+  | 'accept-call' 
+  | 'reject-call'
+  | 'escrow-released'
+  | 'escrow-rejected'
+  | 'dispute-raised'
+  | 'wallet-credited';
+
+export interface NotificationData {
+  type: NotificationType;
+  title: string;
+  body: string;
+  icon?: string;
+  redirectUrl?: string;
+  /**
+   * This is the room name or roomId
+   */
+  callId?: string;
+  [key: string]: any; // For additional custom data
+}
+
+export interface FCMNotification {
+  token: string;
+  data: NotificationData;
+  priority?: 'normal' | 'high';
+  ttl?: number; // Time to live in seconds
+}
+
+export interface FCMNotificationResult {
+  success: boolean;
+  messageId?: string;
+  error?: {
+    code: string;
+    message: string;
+  };
+  token: string;
+  timestamp: Date;
+}
+
+export interface BatchNotificationResult {
+  successes: FCMNotificationResult[];
+  failures: FCMNotificationResult[];
+  totalSent: number;
+  totalFailed: number;
+}
+
+export interface QueuedNotification extends FCMNotification {
+  id?: string;
+  userId: string;
+  status: 'pending' | 'sent' | 'failed';
+  attemptCount: number;
+  maxAttempts: number;
+  createdAt: Date;
+  processedAt?: Date;
+  errorMessage?: string;
+}

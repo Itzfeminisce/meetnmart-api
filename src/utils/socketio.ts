@@ -79,6 +79,8 @@ export class SocketIOServer {
     socketLogger.info('Socket.IO server initialized successfully');
   }
 
+
+
   private async authenticateSocket(socket: Socket): Promise<string | undefined> {
     // Log authentication attempt
     socketLogger.debug('Authenticating socket connection', {

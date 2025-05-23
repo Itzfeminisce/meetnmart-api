@@ -1,4 +1,4 @@
-import express, { Express, Request, Response } from 'express';
+import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -11,6 +11,8 @@ import { getEnvVar } from './utils/env';
 import { logger } from './logger';
 import { createLivekitToken, notifyWaitlistUser } from './routes';
 import { asyncHandler } from './utils/asyncHandlerUtils';
+import { MessagingRouter } from './routes/messaging';
+import { CallsRouter } from './routes/calls';
 
 
 const app = express();
@@ -103,8 +105,10 @@ app.options('*', cors());
 // If createLivekitToken is a router:
 
 // OR if createLivekitToken is a handler function (not a router):
-app.use('/livekit/token', cors(), asyncHandler(createLivekitToken));
-app.use('/waitlist', asyncHandler(notifyWaitlistUser));
+app.use('/messaging', MessagingRouter);
+app.use('/calls', CallsRouter);
+app.post('/livekit/token', cors(), asyncHandler(createLivekitToken));
+app.post('/waitlist', asyncHandler(notifyWaitlistUser));
 
 // Error handling
 app.use(notFound);

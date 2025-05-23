@@ -15,8 +15,8 @@
     
     /* Reduce Type Checking */
     "checkJs": false,                         /* Don't type check JS files */
-    "noImplicitAny": false,                   /* Allow implicit any */
-    "noImplicitThis": false,                  /* Allow implicit this */
+    "noImplicitAny": true,                   /* Allow implicit any */
+    "noImplicitThis": true,                  /* Allow implicit this */
     "strictNullChecks": false,                /* Faster without null checks */
     "strictFunctionTypes": false,             /* Skip function type checking */
     "strictBindCallApply": false,             /* Skip bind/call/apply type checking */
