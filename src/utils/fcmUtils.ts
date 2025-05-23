@@ -4,6 +4,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '../logger';
 import { supabaseClient } from './supabase';
 import path from "path"
+import { BatchNotificationResult, FCMNotification, FCMNotificationResult, QueuedNotification } from '../globals';
 
 const firebaseServiceAccountCreds = path.join(process.cwd(), "meetnmart-firebase-adminsdk-fbsvc-02a5140265.json")
 
