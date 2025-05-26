@@ -367,7 +367,7 @@ export class SocketIOServer {
 
       // const receiverSocketId = await this.getUserByAuthTokenFormCache(receiver.id)
 
-      if (socket.userId === payload.caller.id) {
+      if ((socket.userId === payload.caller.id) && payload.data.callSessionId) {
         // End call officially if the caller ends the call
         await updateCallSession(payload.data.callSessionId, {
           ended_at: new Date()

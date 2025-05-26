@@ -32,21 +32,40 @@ type Database = any;
           .eq('user_id', userId)
           .eq('is_valid', true)
           .order('created_at', { ascending: false })
-          .single();
+          .limit(1);
   
-        if (error || !tokens.token) {
+
+        if (error || !tokens[0].token) {
           logger.warn(`No valid FCM token found for user ${userId}`);
           return null;
         }
   
         // Send to user's latest token
-        const token = tokens.token;
-        return await this.fcmService.sendPushNotification({
+        // Monitization: Ugraded user receives notification accross all devices
+        /**
+         * tokens.map(token => sendToTokens(token))
+         */
+        const token = tokens[0].token;
+        const notificationData = {
           token,
           data,
           priority,
           ttl
-        });
+        }
+
+        const fcmMessagingResponse = await this.fcmService.sendPushNotification(notificationData);
+
+      await this.fcmService.logNotification({
+        ...notificationData,
+        userId,
+        status: 'sent',
+        attemptCount: 1,
+        maxAttempts: 1,
+        createdAt: new Date(),
+        processedAt: new Date()
+      });
+
+      return fcmMessagingResponse
       } catch (error) {
         logger.error('Error in notifyUser:', error);
         return null;

@@ -60,17 +60,6 @@ export class FCMService {
         timestamp: new Date()
       };
 
-      // Log success
-      await this.logNotification({
-        ...notification,
-        userId: '', // Should be populated by caller
-        status: 'sent',
-        attemptCount: 1,
-        maxAttempts: 1,
-        createdAt: new Date(),
-        processedAt: new Date()
-      });
-
       return result;
     } catch (error) {
       logger.error('FCM send error:', error);
@@ -236,7 +225,7 @@ export class FCMService {
   /**
    * Log notification attempt to Supabase
    */
-  private async logNotification(
+   async logNotification(
     notification: QueuedNotification
   ): Promise<void> {
     try {
@@ -251,9 +240,9 @@ export class FCMService {
           data: notification.data,
           status: notification.status,
           attempt_count: notification.attemptCount,
-          error_message: notification.errorMessage,
-          created_at: notification.createdAt.toISOString(),
-          processed_at: notification.processedAt?.toISOString()
+          error_message: notification.errorMessage || null,
+          // created_at: notification.createdAt.toISOString(),
+          // processed_at: notification.processedAt?.toISOString()
         });
 
         if(error) throw error

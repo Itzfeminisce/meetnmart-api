@@ -106,7 +106,6 @@ router.post('/notify/call', asyncHandler(async (req: Request, res: Response) => 
         // Send notification
         const result = await notificationService.notifyUser(userId, data, 'high');
 
-        console.log("[createNotificationData#result]", { result });
 
         if (!result || !result.success) {
             throw new NotFound("No valid FCM token found for user")

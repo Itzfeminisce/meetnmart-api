@@ -26,6 +26,23 @@ channel
       getSocketIO().broadcast("user_socket_cache:user_joined", "refetch");
     }
   )
+  .on(
+    'postgres_changes',
+    { event: 'INSERT', schema: 'public', table: 'markets' },
+    async (_) => {
+      getSocketIO().broadcast("markets:new_market_added", "refetch");
+    }
+  )
+
+  .on(
+    'postgres_changes',
+    { event: 'UPDATE', schema: 'public', table: 'profiles' },
+    (payload) => {
+      console.log({payload});
+      
+      getSocketIO().broadcast("profiles:update", {evt: "refetch:is_reachable", val: payload.old.is_reachable});
+    }
+  )
   .subscribe();
 
 export { supabaseClient }
