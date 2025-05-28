@@ -4,6 +4,8 @@ import { getEnvVar } from "../utils/env";
 import { mailerV2 } from "../utils/mailer_v2";
 import { supabaseClient } from "../utils/supabase";
 import { CallData, EscrowData, EscrowStatus } from "../globals";
+import fileUpload from "express-fileupload";
+import { InternalServerError } from "../utils/responses";
 
 
 export async function createLivekitToken(req: Request) {
@@ -160,3 +162,34 @@ export async function fetchUserById(userId: string) {
     return data.user;
 }
 
+
+export async function uploadFile(
+    file: fileUpload.UploadedFile,
+    uploadKey: string // e.g. `${userId}/${productId}/main.jpg`
+): Promise<string> {
+    try {
+        // Get file buffer
+        const fileBuffer = file.data;
+        const contentType = file.mimetype;
+
+        console.log({ fileBuffer, contentType });
+
+
+        // Upload to Supabase Storage
+        const { data, error: uploadError } = await supabaseClient.storage
+            .from('products')
+            .upload(uploadKey, fileBuffer, {
+                contentType,
+                upsert: true
+            });
+
+        if (uploadError) {
+            throw uploadError;
+        }
+
+        return data?.path ?? uploadKey;
+    } catch (error: any) {
+        console.error('Upload error:', error.message || error);
+        throw new InternalServerError("Upload failed");
+    }
+}

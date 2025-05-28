@@ -2,6 +2,7 @@ import Redis, { ChainableCommander } from 'ioredis';
 import { logger } from '../logger';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseClient } from './supabase';
+import { GeoCache } from './geoCacheUtils';
 
 // Function to mask sensitive data for logging and debugging
 function maskSensitiveData(data: any): any {
@@ -50,7 +51,7 @@ function maskSensitiveData(data: any): any {
 
 type CacheOptions = {
     type: 'redis' | 'memory' | 'database';
-    supabaseClient?: SupabaseClient;
+    databaseClient?: SupabaseClient;
     ttl?: number;
     checkPeriod?: number;
     memoryLimit?: number; // In bytes, defaults to 100MB if not specified
@@ -569,7 +570,7 @@ class RedisCacheService implements ICacheService {
  * Cache service that uses Supabase as a storage backend
  * This can be used for real-time caching with socket connections
  */
-export class SupabaseCacheService implements ICacheService {
+export class DatabaseCacheService implements ICacheService {
     private supabase: SupabaseClient;
     private tableName: string;
     private defaultTtl: number | undefined;
@@ -1105,7 +1106,7 @@ export function createCacheService(options: CacheOptions): ICacheService {
                 database: 'cache'
             });
 
-            return new SupabaseCacheService(options.supabaseClient, options);
+            return new DatabaseCacheService(options.databaseClient, options);
         default:
             logger.error(`Unsupported cache type: ${cacheType}`);
             throw new Error(`Unsupported cache type: ${cacheType}`);
@@ -1114,7 +1115,7 @@ export function createCacheService(options: CacheOptions): ICacheService {
 
 // Example usage with memory cache
 export const cacheService = createCacheService({
-    supabaseClient: supabaseClient,
+    databaseClient: supabaseClient,
     type: "database", // Change to "memory" to use memory cache
     // Optional memory cache configuration when using memory type:
     // memoryLimit: 200 * 1024 * 1024, // 200MB
@@ -1122,3 +1123,11 @@ export const cacheService = createCacheService({
     // checkPeriod: 60000, // Cleanup every minute (in milliseconds)
 });
 
+
+const DEFAULT_RESOLUTION = 0.001; // ~111 meters
+const DEFAULT_TTL = 60; // 60 seconds
+
+export const geoCacheService = new GeoCache(cacheService, {
+    defaultTTL: DEFAULT_TTL,
+    resolution: DEFAULT_RESOLUTION
+})

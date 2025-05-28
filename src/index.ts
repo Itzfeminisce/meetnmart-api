@@ -13,6 +13,9 @@ import { createLivekitToken, notifyWaitlistUser } from './routes';
 import { asyncHandler } from './utils/asyncHandlerUtils';
 import { MessagingRouter } from './routes/messaging';
 import { CallsRouter } from './routes/calls';
+import fileUpload from "express-fileupload"
+import { UploadRouter } from './routes/uploads';
+import { SearchRouter } from './routes/search';
 
 
 const app = express();
@@ -72,6 +75,8 @@ app.use(cors({
 }));
 
 // Other middleware
+
+app.use(fileUpload());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(helmet({
@@ -80,6 +85,7 @@ app.use(helmet({
 }));
 app.use(morgan('dev'));
 app.use(ipAddressMiddleware());
+
 
 const httpServer = http.createServer(app);
 
@@ -105,7 +111,9 @@ app.options('*', cors());
 // If createLivekitToken is a router:
 
 // OR if createLivekitToken is a handler function (not a router):
+app.use('/uploads', UploadRouter);
 app.use('/messaging', MessagingRouter);
+app.use('/search', SearchRouter);
 app.use('/calls', CallsRouter);
 app.post('/livekit/token', cors(), asyncHandler(createLivekitToken));
 app.post('/waitlist', asyncHandler(notifyWaitlistUser));
