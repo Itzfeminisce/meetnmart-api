@@ -60,9 +60,11 @@ type CacheOptions = {
         port: number;
         password?: string;
     };
+    tableName?: string;
 }
 
 export interface ICacheService {
+    createTableIfNotExists?: (tableName: string) => Promise<ICacheService>;
     get<T>(key: string): Promise<T | null>;
     set(key: string, value: any, ttl?: number): Promise<void>;
     del(key: string): Promise<void>;
@@ -574,6 +576,7 @@ export class DatabaseCacheService implements ICacheService {
     private supabase: SupabaseClient;
     private tableName: string;
     private defaultTtl: number | undefined;
+    private tableInitialized: boolean = false;
 
     constructor(
         supabase: SupabaseClient,
@@ -592,11 +595,38 @@ export class DatabaseCacheService implements ICacheService {
         });
     }
 
+    private async ensureTableExists(): Promise<void> {
+        if (this.tableInitialized) return;
+
+        const { error } = await this.supabase.rpc('create_cache_table_if_not_exists', {
+            p_table_name: this.tableName
+        });
+
+        if (error) {
+            logger.error('Failed to create cache table', error, {
+                table: this.tableName
+            });
+            throw error;
+        }
+
+        this.tableInitialized = true;
+        logger.info('Cache table verified/created successfully', {
+            table: this.tableName
+        });
+    }
+
+    async createTableIfNotExists(tableName: string): Promise<DatabaseCacheService> {
+        this.tableName = tableName;
+        await this.ensureTableExists();
+        return this;
+    }
+
     /**
      * Get a value from cache by key
      * Supports wildcard patterns with * and ? characters
      */
     async get<T>(key: string): Promise<T | null> {
+        await this.ensureTableExists();
         try {
             // Check if the key contains a wildcard pattern
             if (key.includes('*') || key.includes('?')) {
@@ -680,6 +710,7 @@ export class DatabaseCacheService implements ICacheService {
      * Store a value in cache with optional TTL
      */
     async set(key: string, value: any, ttl?: number): Promise<void> {
+        await this.ensureTableExists();
         try {
             const serializedValue = JSON.stringify(value);
             const maskedValue = this.maskSensitiveData(value);
@@ -839,6 +870,7 @@ export class DatabaseCacheService implements ICacheService {
      * Delete an entry from the cache by key
      */
     async del(key: string): Promise<void> {
+        await this.ensureTableExists();
         try {
             if (key.includes('*') || key.includes('?')) {
                 // Handle wildcard pattern
@@ -872,6 +904,7 @@ export class DatabaseCacheService implements ICacheService {
      * Delete all entries from the cache
      */
     async flush(): Promise<void> {
+        await this.ensureTableExists();
         try {
             const { error } = await this.supabase
                 .from(this.tableName)
@@ -1113,21 +1146,25 @@ export function createCacheService(options: CacheOptions): ICacheService {
     }
 }
 
-// Example usage with memory cache
+// Create separate cache services for different purposes
 export const cacheService = createCacheService({
     databaseClient: supabaseClient,
-    type: "database", // Change to "memory" to use memory cache
-    // Optional memory cache configuration when using memory type:
-    // memoryLimit: 200 * 1024 * 1024, // 200MB
-    // ttl: 3600, // Default TTL in seconds
-    // checkPeriod: 60000, // Cleanup every minute (in milliseconds)
+    type: "database",
+    tableName: "user_socket_cache"
 });
-
 
 const DEFAULT_RESOLUTION = 0.001; // ~111 meters
 const DEFAULT_TTL = 60; // 60 seconds
 
-export const geoCacheService = new GeoCache(cacheService, {
+// Create a dedicated cache service for geo location data
+const geoLocationCacheService = createCacheService({
+    databaseClient: supabaseClient,
+    type: "database",
+    tableName: "geo_location_market_caches"
+});
+
+// Initialize the GeoCache with the dedicated cache service
+export const geoCacheService = new GeoCache(geoLocationCacheService, {
     defaultTTL: DEFAULT_TTL,
-    resolution: DEFAULT_RESOLUTION
-})
+    resolution: DEFAULT_RESOLUTION,
+});

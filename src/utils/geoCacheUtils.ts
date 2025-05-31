@@ -36,11 +36,15 @@ export class GeoCache {
     const key = this.buildKey(params);
     const cached = await this.engine.get<T>(key);
 
-    if (cached) return cached;
+    if (cached) {
+      console.info("Cached Results", `Markets:${key}`)
+      return cached
+    }
 
     const result = await fetcher();
     await this.engine.set(key, result, ttl ?? this.defaultTTL);
-    return result;
+    console.info("Fetched Results", `Markets:${key}`)
+    return result
   }
 
   async invalidate(params: GeoParams) {

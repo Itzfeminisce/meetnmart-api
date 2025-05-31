@@ -584,17 +584,17 @@ export class SocketIOServer {
 // Singleton instance
 let socketIOServer: SocketIOServer | null = null;
 
-export const initSocketIO = (
+export function initSocketIO(
   httpServer: HttpServer,
   config?: SocketConfig
-): SocketIOServer => {
+): SocketIOServer {
   if (!socketIOServer) {
     socketIOServer = new SocketIOServer(httpServer, config);
   }
   return socketIOServer;
 };
 
-export const getSocketIO = (): SocketIOServer => {
+export function getSocketIO(): SocketIOServer {
   if (!socketIOServer) {
     throw new Error('Socket.IO server not initialized');
   }

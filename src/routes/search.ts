@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../utils/asyncHandlerUtils';
 import { getEnvVar } from '../utils/env';
 import { geoCacheService } from '../utils/cacheUtils';
+import { generateCacheKey } from '../core/cacheKeyStrategy';
 
 const router = Router();
 
@@ -49,6 +50,7 @@ interface GooglePlaceResult {
     }>;
 }
 
+
 async function searchGooglePlaces(params: SearchParams): Promise<{
     results: GooglePlaceResult[];
     nextPageToken?: string;
@@ -74,6 +76,8 @@ async function searchGooglePlaces(params: SearchParams): Promise<{
     }
 
     searchParams.append('key', getEnvVar("GOOGLE_MAP_API_KEY"));
+
+
 
     const response = await fetch(`${endpoint}?${searchParams.toString()}`);
     const data = await response.json() as any;
@@ -112,27 +116,43 @@ async function transformToMarketAnalytics(place: GooglePlaceResult): Promise<Mar
 
 router.post('/', asyncHandler(async (req, res) => {
     const params: SearchParams = req.body;
-    const {nearby, lat, lng, page = 1, pageSize = 10 } = params;
 
-    return {
-        markets: [],
-        nextPageToken: null,
-        cached: false
+    const { lat, lng, page = 1, pageSize = 10, query, nearby } = params;
+
+    // Determine cache duration based on search type
+    const cacheDuration = nearby ? 
+        24 * 60 * 60 : // 1 day for nearby searches (locations don't change often)
+        12 * 60 * 60;  // 12 hours for global searches (more dynamic)
+
+    // Create cache params using GeoCache's strategy
+    const cacheParams = {
+        // For nearby searches, use actual coordinates
+        // For global searches, use (0,0) as base coordinates
+        lat: nearby && lat ? lat : 0,
+        lng: nearby && lng ? lng : 0,
+        // Use resolution for nearby searches to group similar locations
+        resolution: nearby ? 0.01 : undefined, // 0.01 degree resolution (~1km)
+        // Use the core cache key generator for search terms
+        extraKey: `${generateCacheKey(query || '', { 
+            location: nearby ? `${lat},${lng}` : undefined 
+        })}:${page}:${pageSize}:${nearby ? 'nearby' : 'global'}`
     };
 
     // For text searches, use regular cache
-    return await geoCacheService.cache(
-        { lat, lng, extraKey: `page:${page}:${pageSize}` },
+    const results = await geoCacheService.cache(
+        cacheParams,
         async () => {
             const { results: places, nextPageToken } = await searchGooglePlaces(params);
-            const markets =  Promise.all(places.map(transformToMarketAnalytics));
+            const markets = await Promise.all(places.map(transformToMarketAnalytics));
             return {
                 markets,
                 nextPageToken,
-                cached: false
             }
-        }
+        },
+        cacheDuration
     );
+
+    return results
 }));
 
-export {router as SearchRouter};
+export { router as SearchRouter };

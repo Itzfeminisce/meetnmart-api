@@ -6,6 +6,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 import { ipAddressMiddleware } from './middleware/ipMiddleware';
 import { initSocketIO } from './utils/socketio';
+import { setupSupabaseRealtime } from './utils/supabase';
 import http from 'http';
 import { getEnvVar } from './utils/env';
 import { logger } from './logger';
@@ -16,6 +17,7 @@ import { CallsRouter } from './routes/calls';
 import fileUpload from "express-fileupload"
 import { UploadRouter } from './routes/uploads';
 import { SearchRouter } from './routes/search';
+import { MarketRouter } from './routes/markets';
 
 
 const app = express();
@@ -99,6 +101,9 @@ initSocketIO(httpServer, {
   auth: {required: true, tokenKey: "token" },
 });
 
+// Setup Supabase realtime subscriptions
+setupSupabaseRealtime();
+
 // Health Check Route
 app.get('/', (_, res) => {
   res.send('MeetnMart API');
@@ -113,6 +118,7 @@ app.options('*', cors());
 // OR if createLivekitToken is a handler function (not a router):
 app.use('/uploads', UploadRouter);
 app.use('/messaging', MessagingRouter);
+app.use('/markets', MarketRouter);
 app.use('/search', SearchRouter);
 app.use('/calls', CallsRouter);
 app.post('/livekit/token', cors(), asyncHandler(createLivekitToken));
