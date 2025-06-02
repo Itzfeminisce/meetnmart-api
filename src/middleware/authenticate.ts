@@ -1,38 +1,32 @@
 import express, { Request, Response, RequestHandler, NextFunction } from 'express';
 import { Unauthorized } from '../utils/responses';
-import { extractTokenFromHeader, verifyToken } from '../utils/jwtUtils';
 import { logger } from '../logger';
+import { getSupabaseClient } from '../utils/supabase';
+import { UserType } from '../globals';
 
-interface AuthenticatedRequest {
-    id: string;
-    name?: string;
-}
 
-type UserType = "buyer" | "seller" | "moderator" | "admin"
 
-declare global {
-    namespace Express {
-        interface Request {
-            user?: AuthenticatedRequest;
-        }
-    }
-}
 export const authenticate = (allowedRoles?: UserType[]): RequestHandler => {
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const token = extractTokenFromHeader(req.headers.authorization);
-            if (!token) {
-                logger.warn('Authentication failed: No token provided');
-                new Unauthorized('Authentication failed: No token provided').send(res);
-                return;
-            }
 
-            const decoded = await verifyToken(token);
+            const client = await getSupabaseClient(req)
+            const { data: { user } } = await client.auth.getUser()
+            const { data: profile, error } = await client.from("profiles").select("*").eq("id", user.id).single()
+            const {data: user_type} = await client.from("user_roles").select("role").eq("user_id", user.id).single()
+
+            if (!user || !profile || error) {
+                throw new Unauthorized("Unable to retrieve user data");
+            }
 
 
             req.user = {
-                id: decoded.userId!,
+                ...profile,
+                ...user,
+                role: user_type.role
             };
+
+            req.client = client
 
             next();
         } catch (error) {
@@ -42,5 +36,5 @@ export const authenticate = (allowedRoles?: UserType[]): RequestHandler => {
             new Unauthorized('Authentication failed').send(res);
             return;
         }
-    };
+    }
 };

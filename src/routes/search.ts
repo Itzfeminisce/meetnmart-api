@@ -120,7 +120,7 @@ router.post('/', asyncHandler(async (req, res) => {
     const { lat, lng, page = 1, pageSize = 10, query, nearby } = params;
 
     // Determine cache duration based on search type
-    const cacheDuration = nearby ? 
+    const cacheDuration = nearby ?
         24 * 60 * 60 : // 1 day for nearby searches (locations don't change often)
         12 * 60 * 60;  // 12 hours for global searches (more dynamic)
 
@@ -133,8 +133,8 @@ router.post('/', asyncHandler(async (req, res) => {
         // Use resolution for nearby searches to group similar locations
         resolution: nearby ? 0.01 : undefined, // 0.01 degree resolution (~1km)
         // Use the core cache key generator for search terms
-        extraKey: `${generateCacheKey(query || '', { 
-            location: nearby ? `${lat},${lng}` : undefined 
+        extraKey: `${generateCacheKey(query || '', {
+            location: nearby ? `${lat},${lng}` : undefined
         })}:${page}:${pageSize}:${nearby ? 'nearby' : 'global'}`
     };
 
@@ -142,11 +142,19 @@ router.post('/', asyncHandler(async (req, res) => {
     const results = await geoCacheService.cache(
         cacheParams,
         async () => {
-            const { results: places, nextPageToken } = await searchGooglePlaces(params);
-            const markets = await Promise.all(places.map(transformToMarketAnalytics));
-            return {
-                markets,
-                nextPageToken,
+            try {
+                const { results: places, nextPageToken } = await searchGooglePlaces(params);
+                const markets = await Promise.all(places.map(transformToMarketAnalytics));
+                return {
+                    markets,
+                    nextPageToken,
+                }
+            } catch (error) {
+               console.error({error});
+               return {
+                markets: [],
+                nextPageToken: "",
+            }
             }
         },
         cacheDuration

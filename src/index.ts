@@ -18,6 +18,8 @@ import fileUpload from "express-fileupload"
 import { UploadRouter } from './routes/uploads';
 import { SearchRouter } from './routes/search';
 import { MarketRouter } from './routes/markets';
+import { WhispaRouter } from './routes/whispa';
+import { UsersRouter } from './routes/users';
 
 
 const app = express();
@@ -71,7 +73,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Supabase-Refresh'],
   exposedHeaders: ['Content-Length', 'X-Requested-With'],
   maxAge: 86400 // 24 hours in seconds - how long the results of a preflight request can be cached
 }));
@@ -117,10 +119,12 @@ app.options('*', cors());
 
 // OR if createLivekitToken is a handler function (not a router):
 app.use('/uploads', UploadRouter);
+app.use('/users', UsersRouter);
 app.use('/messaging', MessagingRouter);
 app.use('/markets', MarketRouter);
 app.use('/search', SearchRouter);
 app.use('/calls', CallsRouter);
+app.use('/whispa', WhispaRouter);
 app.post('/livekit/token', cors(), asyncHandler(createLivekitToken));
 app.post('/waitlist', asyncHandler(notifyWaitlistUser));
 

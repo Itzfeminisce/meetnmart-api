@@ -3,6 +3,7 @@ import { logger } from '../logger';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseClient } from './supabase';
 import { GeoCache } from './geoCacheUtils';
+import { getEnvVar } from './env';
 
 // Function to mask sensitive data for logging and debugging
 function maskSensitiveData(data: any): any {
@@ -1146,11 +1147,22 @@ export function createCacheService(options: CacheOptions): ICacheService {
     }
 }
 
+// this will eventually replace all tables to have a centralized caching table
+const tableName = "_cache"
+
 // Create separate cache services for different purposes
 export const cacheService = createCacheService({
     databaseClient: supabaseClient,
-    type: "database",
+    type: getEnvVar("NODE_ENV") === "production" ? "database" : "redis",
     tableName: "user_socket_cache"
+});
+
+
+// Create separate cache services for different purposes
+export const generalCacheService = createCacheService({
+    databaseClient: supabaseClient,
+    type: getEnvVar("NODE_ENV") === "production" ? "database" : "redis",
+    tableName
 });
 
 const DEFAULT_RESOLUTION = 0.001; // ~111 meters
@@ -1159,7 +1171,7 @@ const DEFAULT_TTL = 60; // 60 seconds
 // Create a dedicated cache service for geo location data
 const geoLocationCacheService = createCacheService({
     databaseClient: supabaseClient,
-    type: "database",
+    type: getEnvVar("NODE_ENV") === "production" ? "database" : "redis",
     tableName: "geo_location_market_caches"
 });
 

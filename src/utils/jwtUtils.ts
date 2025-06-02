@@ -1,14 +1,15 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { logger } from '../logger';
 import { TokenBlacklist } from './tokenBlacklist';
+import { getEnvVar } from './env';
 
 // Environment variables should be properly set in your application
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-should-be-in-env';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key-should-be-in-env';
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
-const JWT_ISSUER = process.env.JWT_ISSUER || 'paymate-api';
-const JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'paymate-client';
+const JWT_SECRET = getEnvVar("JWT_SECRET") as jwt.Secret;
+const JWT_EXPIRES_IN = getEnvVar("JWT_EXPIRES_IN", "7d");
+const JWT_REFRESH_SECRET = getEnvVar("JWT_REFRESH_SECRET") as jwt.Secret;
+const JWT_REFRESH_EXPIRES_IN = getEnvVar("JWT_REFRESH_EXPIRES_IN", "7d");
+const JWT_ISSUER = getEnvVar("BASE_URL");
+const JWT_AUDIENCE = getEnvVar("FRONTEND_URL");
 
 /**
  * Interface for JWT payload
@@ -25,7 +26,7 @@ export interface JwtPayload {
 export interface TokenResponse {
   accessToken: string;
   refreshToken: string;
-  expiresIn: number;
+  expiresIn: number | string;
   tokenId: string;
 }
 
@@ -34,18 +35,13 @@ export interface TokenResponse {
  * @param user User entity
  * @returns TokenResponse object containing access and refresh tokens
  */
-export function generateTokens(user: {id: string}): TokenResponse {
+export function generateTokens(user: {id: string}, expiresIn: string = JWT_EXPIRES_IN): TokenResponse {
   if (!user || !user.id) {
     logger.error('Cannot generate token for invalid user');
     throw new Error('Invalid user data for token generation');
   }
 
   try {
-    // Calculate expiration time in seconds
-    const expiresIn = parseInt(JWT_EXPIRES_IN.replace(/\D/g, '')) * 
-      (JWT_EXPIRES_IN.includes('h') ? 3600 : 
-       JWT_EXPIRES_IN.includes('m') ? 60 : 86400);
-
     const tokenId = crypto.randomUUID();
 
     // Create payload with only necessary user information
@@ -54,29 +50,31 @@ export function generateTokens(user: {id: string}): TokenResponse {
     };
 
     // Generate access token with additional security options
-    //@ts-ignore
+    const accessTokenOptions: SignOptions = {
+      expiresIn: expiresIn as jwt.SignOptions['expiresIn'],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+      jwtid: tokenId
+    };
+
     const accessToken = jwt.sign(
       payload,
       JWT_SECRET,
-      { 
-        expiresIn: JWT_EXPIRES_IN,
-        issuer: JWT_ISSUER,        // Identifies our application as the token source
-        audience: JWT_AUDIENCE,     // Identifies the intended recipient
-        jwtid: tokenId
-      }
+      accessTokenOptions
     );
 
     // Generate refresh token with minimal payload and security options
-    //@ts-ignore
+    const refreshTokenOptions: SignOptions = {
+      expiresIn: JWT_REFRESH_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+      jwtid: crypto.randomUUID()
+    };
+
     const refreshToken = jwt.sign(
       { userId: user.id },
       JWT_REFRESH_SECRET,
-      { 
-        expiresIn: JWT_REFRESH_EXPIRES_IN,
-        issuer: JWT_ISSUER,
-        audience: JWT_AUDIENCE,
-        jwtid: crypto.randomUUID()
-      }
+      refreshTokenOptions
     );
 
     return {
@@ -164,16 +162,17 @@ export function refreshAccessToken(refreshToken: string, user: {id: string}): { 
       userId: user.id
     };
 
-    //@ts-ignore
+    const accessTokenOptions: SignOptions = {
+      expiresIn: JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+      jwtid: crypto.randomUUID()
+    };
+
     const accessToken = jwt.sign(
       payload,
       JWT_SECRET,
-      { 
-        expiresIn: JWT_EXPIRES_IN,
-        issuer: JWT_ISSUER,
-        audience: JWT_AUDIENCE,
-        jwtid: crypto.randomUUID()
-      }
+      accessTokenOptions
     );
 
     return { accessToken, expiresIn };
@@ -233,6 +232,3 @@ export async function invalidateUserTokens(userId: string, tokens: string[]): Pr
     throw new Error('Failed to invalidate user tokens');
   }
 }
-
-
-
