@@ -33,16 +33,6 @@ router.patch('/location', authenticate(), asyncHandler(async (req, res) => {
         schema: updateLocationSchema,
     });
 
-    const cacheKey = JSON.stringify(parsedData)
-    const isLocationAlreadySet = await generalCacheService.get(cacheKey) as any
-
-    // return early 
-    if (isLocationAlreadySet) {
-        console.log({cacheHit: true});
-        
-        return req.user.id
-    }
-    
     const { data: profile, error } = await req.client.from("profiles").select("id,lng,lat,location").eq("id", req.user.id).single();
     
     if (error) {
@@ -72,9 +62,6 @@ router.patch('/location', authenticate(), asyncHandler(async (req, res) => {
     if (Object.keys(updates).length > 0) {
         await updateUserProfile(req.user.id, updates);
     }
-
-    console.log({cacheHit: false});
-    await generalCacheService.set(cacheKey, profile.id)
 
     return profile.id;
 }));

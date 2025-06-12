@@ -28,10 +28,13 @@ export interface WhispaConfig {
 
 
   
+
+  
   export const DEFAULT_CONFIG: WhispaConfig = {
     llm: {
       provider: 'openai',
       api_key: getEnvVar("OPENAI_API_KEY") || '',
+      // model: 'gpt-4.1',
       model: 'gpt-4o-mini',
       max_tokens: 2048,
       temperature: 1,

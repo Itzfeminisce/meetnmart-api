@@ -1,3 +1,4 @@
+import axios from "axios";
 import { UserType } from "../globals";
 import { SYSTEM_CAPABILITIES, SystemCapabilities } from "./system-config";
 import { DEFAULT_CONFIG, WhispaConfig } from "./whispa-config";
@@ -46,40 +47,52 @@ export interface WhispaOutput {
 
 interface LLMProvider {
     process(prompt: string): Promise<string>;
+    setSystemPromt(prompt: string): LLMProvider;
 }
 
 class OpenAIProvider implements LLMProvider {
-    constructor(private config: WhispaConfig['llm']) { }
+    private prompt: string | undefined = undefined;
 
+    constructor(private config: WhispaConfig['llm']) { }
     async process(prompt: string): Promise<string> {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.config.api_key}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: this.config.model,
+        try {
+            const { OpenAI } = await import('openai');
+            const openai = new OpenAI({
+                apiKey: this.config.api_key,
+                timeout: 30000 // 30 second timeout
+            });
+
+            const {api_key, provider, model, ...configs} = this.config
+
+            const response = await openai.chat.completions.create({
+                model,
                 messages: [
-                    { role: 'system', content: this.getSystemPrompt() },
+                    { role: 'system', content: this.prompt ?? this.getDefaultSystemPromt() },
                     { role: 'user', content: prompt }
                 ],
                 response_format: { type: "json_object" },
-                max_tokens: this.config.max_tokens,
-                temperature: this.config.temperature,
-                top_p: this.config.top_p,
-                frequency_penalty: this.config.frequency_penalty,
-                presence_penalty: this.config.presence_penalty,
-                store: this.config.store,
-            }),
-        });
+                ...configs
+            });
 
-        if (!response.ok) throw new Error(`OpenAI API error: ${response.statusText}`);
-        // @ts-ignore
-        return (await response.json()).choices[0].message.content;
+            const content = response.choices?.[0]?.message?.content;
+            
+            if (!content) {
+                throw new Error('Invalid response format from OpenAI API');
+            }
+
+            return content;
+        } catch (error) {
+            console.error('Error processing OpenAI request:', error);
+            throw error;
+        }
     }
 
-    private getSystemPrompt(): string {
+    public setSystemPromt(prompt: string) {
+        this.prompt = prompt
+        return this;
+    }
+
+    private getDefaultSystemPromt() {
         return `You are Whispa, an intelligent marketplace assistant for MeetnMart.
 
                 CORE IDENTITY:
@@ -96,11 +109,12 @@ class OpenAIProvider implements LLMProvider {
                     "data_requests": [{"source": "products", "filters": {"category": "inferred_category"}}],
                     "follow_up_questions": ["suggested_follow_up_questions"],
                     "user_guidance": {
-                        "suggestions": [eg: "'Premium inferred_product sellers near me'"],
+                        "suggestions": [eg: "Premium inferred_product sellers near me"],
                         "quick_actions": [eg: "View cart", "Track orders", "My favorites"]
                     }
                     }`;
     }
+
 }
 
 
@@ -114,6 +128,10 @@ export class Whispa {
         this.config = { ...DEFAULT_CONFIG, ...config };
         this.capabilities = { ...SYSTEM_CAPABILITIES, ...capabilities };
         this.llm = new OpenAIProvider(this.config.llm)
+    }
+
+    public getLLM() {
+        return this.llm;
     }
 
     async process(input: WhispaInput): Promise<WhispaOutput> {
@@ -205,10 +223,15 @@ export class Whispa {
                 Service Radius: ${this.capabilities.location_services.radius_km}km`;
     }
 
+    public parseResponse(input: string): Record<string, any> {
+        const clean = input.replace(/```json\n?|\n?```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        return parsed
+    }
+
     private parseAndEnhanceResponse(response: string, input: WhispaInput, sessionId: string): WhispaOutput {
         try {
-            const clean = response.replace(/```json\n?|\n?```/g, '').trim();
-            const parsed = JSON.parse(clean);
+            const parsed = this.parseResponse(response)
 
             // Enhance actions with validation
             const validatedActions = this.validateActions(parsed.actions || [], input.user_type);

@@ -20,18 +20,18 @@ router.get("/get-available-markets", asyncHandler(async (req) => {
 
     if (error) throw error;
 
-    const by_popularity = getTopTrendingMarkets(data, MARKETING_CONFIGS.popularity as any);
-    const by_engagements = getTopTrendingMarkets(data, MARKETING_CONFIGS.engagement as any);
+    // const by_popularity = getTopTrendingMarkets(data, MARKETING_CONFIGS.popularity as any);
+    // const by_engagements = getTopTrendingMarkets(data, MARKETING_CONFIGS.engagement as any);
 
-    const results = {
-        impressions: data,
-        popularity: by_popularity,
-        engagements: by_engagements,
-    }
+    // const results = {
+    //     impressions: data,
+    //     popularity: by_popularity,
+    //     engagements: by_engagements,
+    // }
 
     // cacheService.set(`get_available_markets:${limit}`)
 
-    return results
+    return data
 
 }))
 router.get("/get-nearby-sellers", authenticate(), asyncHandler(async (req) => {
@@ -40,6 +40,13 @@ router.get("/get-nearby-sellers", authenticate(), asyncHandler(async (req) => {
     // const { data: { user } } = await client.auth.getUser()
     // const { data: buyer } = await client.from("profiles").select("id,lat,lng").eq("id", user.id).single()
 
+    console.log({
+        userId: req.user.id,
+        category_id,
+        market_id,
+        radius
+    });
+    
     let { data, error } = await req.client
         .rpc('get_nearby_sellers', {
             p_buyer_id: req.user.id,

@@ -3,6 +3,7 @@ import { getEnvVar } from './env'
 import { getSocketIO } from './socketio'
 import { Request } from 'express'
 import { Unauthorized } from './responses'
+import { DATABASE_CACHE_TABLE_NAME } from './cacheUtils'
 
 const supabaseClient = createClient(
   getEnvVar("SUPABASE_URL"),
@@ -11,21 +12,21 @@ const supabaseClient = createClient(
 
 export const setupSupabaseRealtime = () => {
   if (!getSocketIO) return;
-  const channel = supabaseClient.channel('table:user_socket_cache');
+  const channel = supabaseClient.channel('events');
 
   channel
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'user_socket_cache' },
+      { event: 'INSERT', schema: 'public', table: DATABASE_CACHE_TABLE_NAME, filter: 'column_name=eq.socket' },
       async (_) => {
-        getSocketIO().broadcast("user_socket_cache:user_joined", "refetch");
+        getSocketIO().broadcast("events:user_joined", "refetch");
       }
     )
     .on(
       'postgres_changes',
-      { event: 'DELETE', schema: 'public', table: 'user_socket_cache' },
+      { event: 'DELETE', schema: 'public', table: DATABASE_CACHE_TABLE_NAME, filter: 'column_name=eq.socket' },
       async (_) => {
-        getSocketIO().broadcast("user_socket_cache:user_joined", "refetch");
+        getSocketIO().broadcast("events:user_joined", "refetch");
       }
     )
     .on(

@@ -23,7 +23,7 @@ export const authenticate = (allowedRoles?: UserType[]): RequestHandler => {
             req.user = {
                 ...profile,
                 ...user,
-                role: user_type.role
+                role: user_type?.role ?? "unknown"
             };
 
             req.client = client
