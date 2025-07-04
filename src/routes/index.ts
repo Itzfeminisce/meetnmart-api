@@ -3,9 +3,10 @@ import { AccessToken } from 'livekit-server-sdk';
 import { getEnvVar } from "../utils/env";
 import { mailerV2 } from "../utils/mailer_v2";
 import { supabaseClient } from "../utils/supabase";
-import { CallData, EscrowData, EscrowStatus, UserProfile,} from "../globals";
+import { CallData, EscrowData, EscrowStatus, UserProfile, } from "../globals";
 import fileUpload from "express-fileupload";
 import { InternalServerError } from "../utils/responses";
+import { logger } from "../logger";
 
 
 export async function createLivekitToken(req: Request) {
@@ -210,3 +211,21 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
         throw error;
     }
 };
+
+
+export const getSystemRequiredPreferences = async (userId: string) => {
+    const { data: fcmTokens, error } = await supabaseClient.from("fcm_tokens").select("token").eq("user_id", userId)
+
+    if (error) {
+        logger.error("Failed to fetch user fcm tokens", error, { userId })
+        return false
+    };
+
+    return {
+        fcmToken: {
+            available: fcmTokens.length > 0,
+            tokens: fcmTokens.map(it => it.token)
+        }
+    }
+
+}

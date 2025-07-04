@@ -4,6 +4,9 @@ import { getSupabaseClient, supabaseClient } from "../utils/supabase";
 import { getTopTrendingMarkets } from "../config/market-ranker";
 import { MARKETING_CONFIGS } from "../config/market-ranker/trending-config";
 import { authenticate } from "../middleware/authenticate";
+import { InternalServerError } from "../utils/responses";
+import { eventManager } from "../utils/eventUtils";
+import { logger } from "../logger";
 
 const router = express.Router()
 
@@ -35,30 +38,33 @@ router.get("/get-available-markets", asyncHandler(async (req) => {
 
 }))
 router.get("/get-nearby-sellers", authenticate(), asyncHandler(async (req) => {
-    const { market_id, category_id, radius = 100, limit = 10000 } = req.query
-    // const client = await getSupabaseClient(req)
-    // const { data: { user } } = await client.auth.getUser()
-    // const { data: buyer } = await client.from("profiles").select("id,lat,lng").eq("id", user.id).single()
+    const { market_id, category_id, radius = 100, limit = 50 } = req.query
 
-    console.log({
-        userId: req.user.id,
-        category_id,
-        market_id,
-        radius
-    });
-    
+    const query = {
+        p_buyer_id: req.user.id,
+        p_category_id: category_id,
+        p_market_id: market_id,
+        p_radius_km: radius,
+        p_products_limit: limit, 
+        p_products_offset: 0, 
+    }
     let { data, error } = await req.client
-        .rpc('get_nearby_sellers', {
-            p_buyer_id: req.user.id,
-            p_category_id: category_id,
-            p_market_id: market_id,
-            p_radius_km: radius
-            // p_products_limit, 
-            // p_products_offset, 
-        })
+        .rpc('get_nearby_seller_v2', query)
 
-    if (error) console.error(error)
-    else console.log(data)
+    if (error) {
+        logger.error("Failed to fetch nearby markets", error, query)
+        throw new InternalServerError("Failed to fetch sellers. Please try again.")
+    }
+
+    eventManager.emit("notification:notify_non_reachable_sellers_new_buyer_joins", {
+        availableSellers: data,
+        buyerId: req.user.id,
+        market_id, category_id
+    })
+
+
+    
+    // else console.log(data)
 
 // const cacheKey = ''
 //     cacheService.set()

@@ -6,8 +6,15 @@ import { authenticate } from '../middleware/authenticate';
 import { z } from 'zod';
 import { eventManager } from '../utils/eventUtils';
 import { feedCreateOrCompleteLimiter, feedInteractionLimiter } from '../middleware/rateLimiter';
+import { getEnvVar } from '../utils/env';
+import { createLLMContext } from '../utils/helpers';
+import { LLMRouter } from '../llm/LLMRouter';
+import { NotificationHandler } from '../core/notification/handler';
+import { getSocketIO } from '../utils/socketio';
+import { CallAction } from '../events';
 
 const router = express.Router();
+
 
 
 const getFeedCompletionSchema = () => {
@@ -70,7 +77,7 @@ router.post("/feeds/interactions", authenticate(), feedInteractionLimiter, async
     });
 
     // Parse and validate request body
-    const { type, ...rest } = interactionSchema.parse({
+    const { type, ...interaction } = interactionSchema.parse({
         user_id: req.user.id,
         feed_id: req.body.feed_id,
         author_id: req.body.author.id,
@@ -84,7 +91,7 @@ router.post("/feeds/interactions", authenticate(), feedInteractionLimiter, async
     // Attempt to insert interaction
     const { error } = await req.client
         .from("feed_interactions")
-        .insert({ type, ...rest })
+        .insert({ type, ...interaction })
         .select()
         .single();
 
@@ -95,8 +102,8 @@ router.post("/feeds/interactions", authenticate(), feedInteractionLimiter, async
                 .from("feed_interactions")
                 .delete()
                 .match({
-                    feed_id: rest.feed_id,
-                    user_id: rest.user_id,
+                    feed_id: interaction.feed_id,
+                    user_id: interaction.user_id,
                     type: 'bookmark'
                 });
 
@@ -113,11 +120,51 @@ router.post("/feeds/interactions", authenticate(), feedInteractionLimiter, async
         throw new InternalServerError("Operation Failed", error.message);
     }
 
+    // const { data, error: notificationError } = await req.client.from("notifications").insert({
+    //     type: "interaction",
+    //     is_read: false,
+    //     priority: "medium",
+    //     sender_id: interaction.user_id,
+    //     recipient_id: interaction.author_id,
+    //     timestamp: new Date().toUTCString(),
+    //     title: `You have a new ${type}`,
+    //     metadata: {
+    //         ...interaction.metadata,
+    //         sender: req.body?.author,
+    //         type,
+    //         feed_id: interaction.feed_id,
+    //     }
+    // }).select("*").single()
+
+    // if (!notificationError && data) {
+
+    const notification = new NotificationHandler()
+    try {
+        await notification.sendNotification(
+            {
+                type: "interaction",
+                sender_id: interaction.user_id,
+                recipient_id: interaction.author_id,
+                title: `You have a new ${type}`,
+                metadata: {
+                    ...interaction.metadata,
+                    sender: req.body?.author,
+                    feed_id: interaction.feed_id,
+                }
+            }
+        )
+    } catch (error) {
+        console.error("Unable to notify recipient with notification data", error);
+    }
+    //  else {
+    //     console.error("Unable to save notification data: ", notificationError)
+    // }
+
     return "OK";
 }))
 
 
-router.post("/feeds/create", authenticate(), feedCreateOrCompleteLimiter, asyncHandler(async (req) => {
+router.post("/feeds/create", authenticate(), asyncHandler(async (req) => {
 
     const { isCompletionAttempted = false, images = [] } = req.body
     const { client, user } = req;
@@ -199,14 +246,30 @@ router.post("/feeds/completion", authenticate(), feedCreateOrCompleteLimiter, as
 }))
 
 
+
 // POST /whispa/ai
-router.post('/ai', authenticate(), feedCreateOrCompleteLimiter, asyncHandler(async (req, res) => {
+router.post('/ai', authenticate(), asyncHandler(async (req, res) => {
     const { message } = req.body;
 
     if (!message) {
         throw new BadRequest("Message is required")
     }
+
+
     const user = req.user
+    // const mcpClient = new MCPServer()
+    const context = createLLMContext(req);
+    const router = new LLMRouter(getEnvVar("OPENAI_API_KEY"), context);
+    const response = await router.processUserPrompt(message);
+    // const response = await router.processUserPrompt(message, user.id, user.role, {
+    //     lat: user.lat,
+    //     lng: user.lng
+    // });
+
+    console.log({ response });
+
+
+    return response;
 
     const whispa = new Whispa();
 
@@ -234,4 +297,32 @@ router.post('/ai', authenticate(), feedCreateOrCompleteLimiter, asyncHandler(asy
 
 }));
 
+
+
+// {
+//     "intent": "find_nearby_sellers",
+//     "entities": {
+//         "product": null,
+//         "location": "Shomolu, Lagos",
+//         "quantity": null
+//     },
+//     "response": "Sure! I can help you find nearby sellers in Shomolu, Lagos. Please hold on a moment while I gather the information for you.",
+//     "confidence": 0.85,
+//     "actions": [],
+//     "follow_up_questions": [
+//         "Are you looking for specific products from the sellers?",
+//         "Would you like to see sellers rated highly or with specific products?"
+//     ],
+//     "user_guidance": {
+//         "suggestions": [
+//             "Check premium sellers near me",
+//             "Filter by product category"
+//         ],
+//         "quick_actions": [
+//             "View cart",
+//             "Track orders",
+//             "My favorites"
+//         ]
+//     }
+// }
 export { router as WhispaRouter };

@@ -1,0 +1,132 @@
+<!-- Email Body Content -->
+<tr>
+    <td style="padding: 40px 20px; color: #444444; font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 16px; line-height: 1.6; background: #f9fafc;">
+      
+      <!-- Personalized Header -->
+      <div style="background: linear-gradient(90deg, #f0f4ff 0%, #f5f9ff 100%); border-radius: 12px; padding: 25px; margin-bottom: 30px; text-align: center;">
+        <h1 style="color: #4a6bff; font-size: 26px; margin: 0 0 5px 0; font-weight: 600;">
+          <span style="display: inline-block; width: 32px; height: 32px; background: #e0e8ff; border-radius: 50%; text-align: center; line-height: 32px; margin-right: 10px;">📊</span>
+          Hello <%= notificationData.name %>, your weekend insights
+        </h1>
+        <p style="margin: 0; color: #6a7c94; font-size: 15px;">
+          <%= notificationData.date %> • Engagement snapshot
+        </p>
+      </div>
+  
+      <!-- Core Metrics Grid -->
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px;">
+        <!-- Total Posts -->
+        <div style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+          <div style="font-size: 28px; font-weight: 700; color: #4a6bff; margin-bottom: 5px;"><%= notificationData.totalPosts %></div>
+          <div style="color: #6a7c94; font-size: 14px;">Active Posts</div>
+          <div style="height: 3px; background: #e0e8ff; border-radius: 2px; margin-top: 15px;"></div>
+        </div>
+        
+        <!-- Total Views -->
+        <div style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+          <div style="font-size: 28px; font-weight: 700; color: #4a6bff; margin-bottom: 5px;"><%= notificationData.views %></div>
+          <div style="color: #6a7c94; font-size: 14px;">Total Views</div>
+          <div style="height: 3px; background: #e0e8ff; border-radius: 2px; margin-top: 15px;"></div>
+        </div>
+        
+        <!-- Bookmarks -->
+        <div style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+          <div style="font-size: 28px; font-weight: 700; color: #4a6bff; margin-bottom: 5px;"><%= notificationData.bookmarks %></div>
+          <div style="color: #6a7c94; font-size: 14px;">Bookmarks</div>
+          <div style="height: 3px; background: #e0e8ff; border-radius: 2px; margin-top: 15px;"></div>
+        </div>
+        
+        <!-- Comments -->
+        <div style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+          <div style="font-size: 28px; font-weight: 700; color: #4a6bff; margin-bottom: 5px;"><%= notificationData.comments %></div>
+          <div style="color: #6a7c94; font-size: 14px;">Comments</div>
+          <div style="height: 3px; background: #e0e8ff; border-radius: 2px; margin-top: 15px;"></div>
+        </div>
+      </div>
+  
+      <!-- Engagement Summary -->
+      <div style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 2px 12px rgba(0,0,0,0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h2 style="margin: 0; color: #4a6bff; font-size: 18px;">Engagement Breakdown</h2>
+          <div style="background: #f0f4ff; color: #4a6bff; padding: 4px 10px; border-radius: 20px; font-size: 13px; font-weight: 500;">
+            <%= notificationData.avgInteractions %> avg/post
+          </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; text-align: center;">
+          <div style="flex: 1; padding: 0 5px;">
+            <div style="width: 50px; height: 50px; margin: 0 auto 8px; background: #f0f4ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #4a6bff;">
+              👁️
+            </div>
+            <div style="font-weight: 600;"><%= Math.round((notificationData.views/notificationData.totalInteractions)*100) %>%</div>
+            <div style="color: #6a7c94; font-size: 13px;">Views</div>
+          </div>
+          
+          <div style="flex: 1; padding: 0 5px;">
+            <div style="width: 50px; height: 50px; margin: 0 auto 8px; background: #f0f4ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #4a6bff;">
+              🔖
+            </div>
+            <div style="font-weight: 600;"><%= Math.round((notificationData.bookmarks/notificationData.totalInteractions)*100) %>%</div>
+            <div style="color: #6a7c94; font-size: 13px;">Saves</div>
+          </div>
+          
+          <div style="flex: 1; padding: 0 5px;">
+            <div style="width: 50px; height: 50px; margin: 0 auto 8px; background: #f0f4ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #4a6bff;">
+              💬
+            </div>
+            <div style="font-weight: 600;"><%= Math.round((notificationData.comments/notificationData.totalInteractions)*100) %>%</div>
+            <div style="color: #6a7c94; font-size: 13px;">Comments</div>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Top Post Spotlight -->
+      <div style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 30px; box-shadow: 0 2px 12px rgba(0,0,0,0.05);">
+        <div style="display: flex; align-items: center; margin-bottom: 15px;">
+          <div style="width: 40px; height: 40px; background: #f0f4ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 15px; color: #4a6bff;">
+            🏆
+          </div>
+          <div>
+            <h2 style="margin: 0; color: #4a6bff; font-size: 18px;">Top Performing Post</h2>
+            <p style="margin: 3px 0 0; color: #6a7c94; font-size: 14px;">"<%= notificationData.topPost.title %>"</p>
+          </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; margin-top: 15px;">
+          <div>
+            <div style="font-size: 20px; font-weight: 700; color: #4a6bff;"><%= notificationData.topPost.views %></div>
+            <div style="color: #6a7c94; font-size: 13px;">Views</div>
+          </div>
+          <div>
+            <div style="font-size: 20px; font-weight: 700; color: #4a6bff;"><%= notificationData.topPost.bookmarks %></div>
+            <div style="color: #6a7c94; font-size: 13px;">Saves</div>
+          </div>
+          <div>
+            <div style="font-size: 20px; font-weight: 700; color: #4a6bff;"><%= notificationData.topPost.comments %></div>
+            <div style="color: #6a7c94; font-size: 13px;">Comments</div>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Action Card -->
+      <div style="background: linear-gradient(90deg, #f8faff 0%, #ffffff 100%); border: 1px solid #e0e8ff; border-radius: 12px; padding: 25px; text-align: center; margin-bottom: 25px;">
+        <h3 style="margin: 0 0 15px 0; color: #4a6bff; font-size: 18px;">Ready to optimize your content?</h3>
+        <a href="https://meetnmart.com" style="display: inline-block; background: #4a6bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; font-size: 15px; box-shadow: 0 2px 8px rgba(74, 107, 255, 0.2);">
+          View Performance Dashboard
+        </a>
+      </div>
+  
+      <!-- Dynamic Tip -->
+      <div style="text-align: center; color: #6a7c94; font-size: 14px; padding: 0 10px;">
+        <p style="margin: 0; font-style: italic;">
+          <% if (notificationData.topPost.bookmarks > notificationData.topPost.comments) { %>
+          "Your content is being saved frequently! Consider creating more like your top post."
+          <% } else if (notificationData.topPost.comments > 3) { %>
+          "Your audience is engaging! Try responding to comments to build community."
+          <% } else { %>
+          "Posts with clear calls-to-action get 2x more engagement. Try ending with a question!"
+          <% } %>
+        </p>
+      </div>
+    </td>
+  </tr>

@@ -12,6 +12,43 @@ import { z } from "zod"
 
 const router = express.Router()
 
+router.post("/file/products", authenticate(), fileUploadLimiter, asyncHandler(async (req) => {
+    const resourceName = req.headers['x-resource-group-name']
+
+    if (!resourceName) {
+        throw new BadRequest("Invalid or missing upload resource group in request header. (tip: x-resource-group-name: string)")
+    }
+    const file = req.files.file as fileUpload.UploadedFile
+
+    
+    const result = await uploadFiles({
+        files: [file] as any,
+        preferredName: resourceName?.toString(),
+        storage: {
+            provider: 'cloudinary',
+            client: await createCloudinaryClient(),
+            folder: `${resourceName}/${req.user.id}`,
+            bucket: "uploads",
+        },
+    });
+
+    return result.files.map(it => it.publicUrl).at(0)
+
+    // const fileExt = file.name.split('.').pop();
+    // const filePath = `${filePreferedName}/${Date.now()}-${Math.random()}.${fileExt}`
+
+    // await uploadFile(file, filePath)
+
+
+    // const { data } = supabaseClient.storage
+    //     .from('products')
+    //     .getPublicUrl(filePath);
+
+    // console.log({ publicUrl: data.publicUrl, filePreferedName, filePath });
+
+    // return data.publicUrl
+}))
+
 router.post("/file", authenticate(), fileUploadLimiter, asyncHandler(async (req) => {
     try {
         const fileSchema = z.object({
@@ -50,35 +87,20 @@ router.post("/file", authenticate(), fileUploadLimiter, asyncHandler(async (req)
             },
         });
 
+        console.log({fileUpload: result});
+        
+
         return {
             urls: result.files.map(it => it.publicUrl)
         };
     } catch (error: any) {
         console.log("[FileUploadError]", error);
-        
+
         if (error instanceof z.ZodError) {
             throw new BadRequest("Invalid file upload format", 'Upload Failed');
         }
         throw error;
     }
-
-    const file = req.files.file as fileUpload.UploadedFile
-    const { filePreferedName } = req.body
-
-
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${filePreferedName}/${Date.now()}-${Math.random()}.${fileExt}`
-
-    await uploadFile(file, filePath)
-
-
-    const { data } = supabaseClient.storage
-        .from('products')
-        .getPublicUrl(filePath);
-
-    console.log({ publicUrl: data.publicUrl, filePreferedName, filePath });
-
-    return data.publicUrl
 }))
 
 

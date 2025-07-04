@@ -138,13 +138,13 @@ export function formatPhoneNumber(phoneNumber: string): string {
     if (!validatePhoneNumber(phoneNumber)) {
         throw new Error('Invalid phone number');
     }
-    
+
     const cleaned = phoneNumber.replace(/\D/g, '');
     if (cleaned.startsWith('0')) {
         return `234${cleaned.slice(1)}`;
     }
     return cleaned;
-} 
+}
 
 /**
  * Masks an email address by showing only the first 3 characters of the local part
@@ -157,7 +157,7 @@ export const maskEmail = (email: string): string => {
     if (!email || !email.includes('@')) return email;
 
     const [localPart, domain] = email.split('@');
-    
+
     if (localPart.length <= 3) {
         return `${localPart}****@${domain}`;
     }
@@ -168,12 +168,61 @@ export const maskEmail = (email: string): string => {
 
 export const generateFixedLengthRandomNumber = (len: number): string => {
     if (len <= 0 || len > 16) {
-      throw new Error('Length must be between 1 and 16');
+        throw new Error('Length must be between 1 and 16');
     }
-  
+
     let result = '';
     for (let i = 0; i < len; i++) {
-      result += Math.floor(Math.random() * 10);
+        result += Math.floor(Math.random() * 10);
     }
     return result;
-  };
+};
+
+
+type AnyObject = Record<string, any>
+
+export function deepFlatten(obj: AnyObject): AnyObject {
+    const result: AnyObject = {}
+
+    function walk(current: AnyObject) {
+        for (const [key, value] of Object.entries(current)) {
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                walk(value)
+            } else {
+                result[key] = value
+            }
+        }
+    }
+
+    walk(obj)
+    return result
+}
+
+export type WithdrawalOptions = {
+    waiveFlatFeeBelow?: number;   // e.g. 2000
+    flatFee?: number;             // e.g. 100
+    percentFee?: number;          // e.g. 0.002
+    maxFee?: number;              // e.g. 2000
+};
+
+export function calculateWithdrawalReceivedAmount(
+    withdrawalAmount: number,
+    _options: WithdrawalOptions = {
+        flatFee: 100,
+        percentFee: 0.002,
+        maxFee: 2000,
+        waiveFlatFeeBelow: 2000,
+    }
+): number {
+    const { flatFee, maxFee, percentFee, waiveFlatFeeBelow } = _options
+
+    const feeFromPercent = withdrawalAmount * percentFee;
+
+    const applyFlatFee = withdrawalAmount >= waiveFlatFeeBelow;
+    const totalFee = Math.min(
+        feeFromPercent + (applyFlatFee ? flatFee : 0),
+        maxFee
+    );
+    const receivedAmount = Math.max(0, withdrawalAmount - totalFee);
+    return Number(receivedAmount.toFixed(2));
+}

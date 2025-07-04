@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -20,6 +20,13 @@ import { SearchRouter } from './routes/search';
 import { MarketRouter } from './routes/markets';
 import { WhispaRouter } from './routes/whispa';
 import { UsersRouter } from './routes/users';
+import { PaymentRouter } from './routes/payments';
+import { registerMCPClient } from './middleware/registerMCPClient';
+
+
+
+import "./cron-tasks"
+import "./core/events"
 
 
 const app = express();
@@ -30,8 +37,8 @@ const allowedOrigins = [
   ...(getEnvVar("NODE_ENV") === 'development' ? [
     'http://localhost:3000',
     'http://localhost:3001',
-  ]:[]),
-  process.env.APP_URL ,
+  ] : []),
+  process.env.APP_URL,
   'https://dev.meetnmart.com',
   'https://meetnmart.com',
   'https://www.meetnmart.com',
@@ -60,10 +67,10 @@ if (getEnvVar("NODE_ENV") === 'production') {
 
 // Apply CORS middleware before other middleware to handle preflight requests properly
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
       callback(null, true);
     } else {
@@ -89,22 +96,27 @@ app.use(helmet({
 }));
 app.use(morgan('dev'));
 app.use(ipAddressMiddleware());
+// app.use(registerMCPClient())
 
 
 const httpServer = http.createServer(app);
 
 // Initialize Socket.IO with proper configuration
-initSocketIO(httpServer, { 
+initSocketIO(httpServer, {
   cors: {
     origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
   },
-  auth: {required: true, tokenKey: "token" },
+  auth: { required: true, tokenKey: "token" },
 });
 
+const registerRequest = setupSupabaseRealtime();
+
+// app.use(authenticate(), registerRequest)
+
 // Setup Supabase realtime subscriptions
-setupSupabaseRealtime();
+
 
 // Health Check Route
 app.get('/', (_, res) => {
@@ -118,6 +130,8 @@ app.options('*', cors());
 // If createLivekitToken is a router:
 
 // OR if createLivekitToken is a handler function (not a router):
+// app.use("*", authenticate(), registerRequest())
+app.use('/payments', PaymentRouter);
 app.use('/uploads', UploadRouter);
 app.use('/users', UsersRouter);
 app.use('/messaging', MessagingRouter);

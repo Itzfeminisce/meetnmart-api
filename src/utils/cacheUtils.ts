@@ -1128,23 +1128,23 @@ export function createCacheService(options: CacheOptions): ICacheService {
 
     switch (cacheType) {
         case 'redis':
-            logger.debug('Using Redis cache service', {
-                ttl: options.ttl,
-                host: options.redis?.host || 'localhost',
-                port: options.redis?.port || 6379
-            });
+            // logger.debug('Using Redis cache service', {
+            //     ttl: options.ttl,
+            //     host: options.redis?.host || 'localhost',
+            //     port: options.redis?.port || 6379
+            // });
             return new RedisCacheService(options);
         case 'memory':
-            logger.debug('Using Memory cache service', {
-                ttl: options.ttl,
-                memoryLimit: options.memoryLimit || '100MB',
-                checkPeriod: options.checkPeriod
-            });
+            // logger.debug('Using Memory cache service', {
+            //     ttl: options.ttl,
+            //     memoryLimit: options.memoryLimit || '100MB',
+            //     checkPeriod: options.checkPeriod
+            // });
             return new MemoryCacheService(options);
         case 'database':
-            logger.debug('Using Database cache service', {
-                database: 'database'
-            });
+            // logger.debug('Using Database cache service', {
+            //     database: 'database'
+            // });
 
             return new DatabaseCacheService(options.databaseClient, options);
         default:
@@ -1159,7 +1159,7 @@ export function createCacheService(options: CacheOptions): ICacheService {
 // Create separate cache services for different purposes
 export const cacheService = createCacheService({
     databaseClient: supabaseClient,
-    type: (getEnvVar("NODE_ENV") === "production") ? "database" : "redis",
+    type: (getEnvVar("NODE_ENV") == "production") ? "database" : "redis",
     tableName: DATABASE_CACHE_TABLE_NAME,
     columnTypeName: "socket"
 });
@@ -1168,7 +1168,7 @@ export const cacheService = createCacheService({
 // Create separate cache services for different purposes
 export const generalCacheService = createCacheService({
     databaseClient: supabaseClient,
-    type: (getEnvVar("NODE_ENV") === "production") ? "database" : "redis",
+    type: (getEnvVar("NODE_ENV") == "production") ? "database" : "redis",
     tableName: DATABASE_CACHE_TABLE_NAME,
     columnTypeName: "general"
 });
@@ -1179,7 +1179,7 @@ const DEFAULT_TTL = 60; // 60 seconds
 // Create a dedicated cache service for geo location data
 const geoLocationCacheService = createCacheService({
     databaseClient: supabaseClient,
-    type: (getEnvVar("NODE_ENV") === "production") ? "database" : "redis",
+    type: (getEnvVar("NODE_ENV") == "production") ? "database" : "redis",
     tableName: DATABASE_CACHE_TABLE_NAME,
     columnTypeName: "geo"
 });

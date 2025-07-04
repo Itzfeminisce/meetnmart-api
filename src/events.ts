@@ -9,6 +9,9 @@ export enum CallAction {
   EscrowAccepted = "ESCROW_ACCEPTED",
   EscrowRejected = "ESCROW_REJECTED",
   EscrowReleased = "ESCROW_RELEASED",
+
+  NotificationNewBookmark = "NEW_BOOKMARK_EVENT",
+  CalculateWithdrawalReceivedAmount = "CALCULATE_WITHDRAWAL_RECIEVED_AMOUNT_EVENT"
 }
 
 export enum AppEvent {

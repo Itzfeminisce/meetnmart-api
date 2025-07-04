@@ -371,7 +371,14 @@ export const CloudinaryStorageAdapter = {
                     folder: options.folder,
                     resource_type: options.resourceType || 'auto',
                     use_filename: false,
-                    unique_filename: true
+                    unique_filename: true,
+                    transformation: [{
+                        width: 1000,
+                        height: 1000,
+                        crop: 'limit',
+                        quality: 'auto',
+                        fetch_format: 'avif'
+                    }]
                 };
 
                 const result: any = await new Promise((resolve, reject) => {
@@ -470,8 +477,8 @@ export const ValidationPresets = {
     images: {
         maxSize: 10 * 1024 * 1024, // 10MB
         maxFiles: 10,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'],
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']
     },
     documents: {
         maxSize: 50 * 1024 * 1024, // 50MB

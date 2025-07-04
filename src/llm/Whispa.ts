@@ -62,7 +62,7 @@ class OpenAIProvider implements LLMProvider {
                 timeout: 30000 // 30 second timeout
             });
 
-            const {api_key, provider, model, ...configs} = this.config
+            const { api_key, provider, model, ...configs } = this.config
 
             const response = await openai.chat.completions.create({
                 model,
@@ -75,7 +75,7 @@ class OpenAIProvider implements LLMProvider {
             });
 
             const content = response.choices?.[0]?.message?.content;
-            
+
             if (!content) {
                 throw new Error('Invalid response format from OpenAI API');
             }
@@ -156,6 +156,9 @@ export class Whispa {
         const capabilities = this.getRelevantCapabilities(input.user_type);
         const locationContext = this.buildLocationContext(input.location);
 
+        console.log({ capabilities, locationContext, session });
+
+
         return `
                 MARKETPLACE CONTEXT:
                 - Platform: ${this.config.marketplace.name} (${this.config.marketplace.location})
@@ -185,12 +188,6 @@ export class Whispa {
                 5. Provide helpful response
                 6. Suggest follow-up questions if needed
                 7. Include user guidance for better experience
-
-                Consider:
-                - Local product names (e.g., "garri", "plantain", "yam")
-                - Nigerian locations and areas
-                - Local payment methods and delivery expectations
-                - Cultural shopping patterns and preferences
                 `;
     }
 

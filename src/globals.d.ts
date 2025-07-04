@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import { MCPSSEClient } from "./llm/MCPSSEClient";
 
 
 export type UserType = "buyer" | "seller" | "moderator" | "admin" | "delivery_agent"
@@ -61,6 +62,7 @@ declare global {
     interface Request {
       user?: AuthenticatedUser;
       client?: SupabaseClient<any, "public", any>
+      mcpClient?:  MCPSSEClient
     }
   }
 }
@@ -172,4 +174,47 @@ export interface QueuedNotification extends FCMNotification {
   createdAt: Date;
   processedAt?: Date;
   errorMessage?: string;
+}
+
+export interface GetNearbySellerResponse {
+  seller_id: string
+  name: string
+  email: string
+  avatar: string
+  distance_km: number
+  seller_status: {
+    is_online: boolean
+    is_premium: boolean
+    description: string
+    is_verified: boolean
+    is_reachable: boolean
+  }
+  products: {
+    items: Product[]
+    has_more: boolean
+    total_count: number
+  }
+  reviews_summary: {
+    total_reviews: number
+    average_rating: number
+    recent_reviews: Review[]
+  }
+  avg_response_time_minutes: number
+}
+
+export interface Product {
+  id: string
+  name: string
+  image: string
+  price: number
+  category: string
+  in_stock: boolean
+  created_at: string
+  description: string
+}
+
+export interface Review {
+  rating: number
+  created_at: string
+  feedback_text: string
 }
