@@ -1177,11 +1177,18 @@ const DEFAULT_RESOLUTION = 0.001; // ~111 meters
 const DEFAULT_TTL = 60; // 60 seconds
 
 // Create a dedicated cache service for geo location data
-const geoLocationCacheService = createCacheService({
+export const geoLocationCacheService = createCacheService({
     databaseClient: supabaseClient,
     type: (getEnvVar("NODE_ENV") == "production") ? "database" : "redis",
     tableName: DATABASE_CACHE_TABLE_NAME,
     columnTypeName: "geo"
+});
+// Create a dedicated cache service for geo location data
+export const marketPlaceCacheService = createCacheService({
+    databaseClient: supabaseClient,
+    type: (getEnvVar("NODE_ENV") == "production") ? "database" : "redis",
+    tableName: DATABASE_CACHE_TABLE_NAME,
+    columnTypeName: "marketplace"
 });
 
 // Initialize the GeoCache with the dedicated cache service

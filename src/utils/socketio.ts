@@ -5,11 +5,12 @@ import { Server, Socket } from 'socket.io';
 import { logger } from '../logger';
 import { cacheService, ICacheService } from './cacheUtils';
 import { AppEvent, CallAction } from '../events';
-import { updateUserProfileById } from '../functions';
+import { createOrSendMessage, markConversationAsRead, updateUserProfileById } from '../functions';
 import { fetchUserById, getSystemRequiredPreferences, releaseFund, storeNewCallSession, storeTransaction, updateCallSession, updateTransaction, updateWallet } from '../routes';
-import { CallData, EscrowData, EscrowReleasedData } from '../globals';
+import { CallData, CreateChatPayload, EscrowData, EscrowReleasedData } from '../globals';
 import { mailerV2 } from './mailer_v2';
 import { calculateWithdrawalReceivedAmount, WithdrawalOptions } from './commonUtils';
+import { supabaseClient } from './supabase';
 
 const socketLogger = logger;
 
@@ -342,9 +343,17 @@ export class SocketIOServer {
     socket.on(CallAction.EscrowRejected, ([data]) => {
       this.handleEscrowRejected(socket, data);
     })
-    socket.on(CallAction.EscrowReleased, ([data]) => {
-      this.handleEscrowReleased(socket, data);
+    socket.on(CallAction.CreateChat, ([data]) => {
+      this.handleCreateChat(socket, data);
     })
+
+    socket.on(CallAction.ChatTyping, ([data]) => {
+      this.handleChatTyping(socket, data)
+    })
+    socket.on(CallAction.ChatRead, ([data]) => {
+      this.handleChatRead(socket, data)
+    })
+
 
     // Error handling
     socket.on('error', (error) => {
@@ -392,10 +401,10 @@ export class SocketIOServer {
   }
 
   private async calculateWithdrawalReceivedAmount(socket: AuthenticatedSocket, withdrawalAmount: number) {
-      const amount = calculateWithdrawalReceivedAmount(withdrawalAmount)
-      // console.log({amount, withdrawalAmount});
-      
-      socket.emit(CallAction.CalculateWithdrawalReceivedAmount, amount)
+    const amount = calculateWithdrawalReceivedAmount(withdrawalAmount)
+    // console.log({amount, withdrawalAmount});
+
+    socket.emit(CallAction.CalculateWithdrawalReceivedAmount, amount)
   }
   private async handleOutgoingCall(socket: AuthenticatedSocket, data: any) {
     try {
@@ -600,6 +609,74 @@ export class SocketIOServer {
       socketLogger.error('Error in handle escrow rejected call', error, {
         socketId: socket.id,
         payload,
+        userId: socket.userId || 'anonymous',
+        error: error.message
+      });
+    }
+  }
+
+  private async handleCreateChat(socket: AuthenticatedSocket, payload: CreateChatPayload & { conversationId: string }) {
+    try {
+
+
+      const chat = {
+        text: payload.message,
+        // sender: 'other',
+        // timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        // status: 'sent',
+        conversationId: payload.conversationId,
+      }
+
+      createOrSendMessage({
+        message: payload.message,
+        to: payload.to,
+      }, supabaseClient, socket.userId)
+
+      try {
+        const receiverSocketId = await this.getUserByAuthTokenFormCache(payload.to)
+        this.io.to(receiverSocketId).emit(CallAction.CreateChat, chat)
+      } catch (error) {
+        console.log("[handleCreateChat]#error", "User is not online or not found", error);
+      }
+      // Notify the seller/reciiver they have a call
+    } catch (error) {
+      socketLogger.error('Error in handle create chat', error, {
+        socketId: socket.id,
+        payload,
+        userId: socket.userId || 'anonymous',
+        error: error.message
+      });
+    }
+  }
+
+  private async handleChatRead(socket: AuthenticatedSocket, data: any) {
+    try {
+      console.log("[handleChatRead]#data", data);
+
+      // const 
+      // const receiverSocketId = await this.getUserByAuthTokenFormCache(data.participantId)
+      await markConversationAsRead(data.conversationId, supabaseClient, socket.userId)
+
+      // this.io.to(receiverSocketId).emit(CallAction.ChatRead, data)
+    } catch (error) {
+      socketLogger.error('Error in handle mark chat as read', error, {
+        socketId: socket.id,
+        data,
+        userId: socket.userId || 'anonymous',
+        error: error.message
+      });
+    }
+  }
+  private async handleChatTyping(socket: AuthenticatedSocket, data: any) {
+    try {
+      const receiverSocketId = await this.getUserByAuthTokenFormCache(data.participantId)
+
+      // Notify the receiver that the sender is typing
+      this.io.to(receiverSocketId).emit(CallAction.ChatTyping, data)
+    } catch (error) {
+      socketLogger.error('Error in handle chat typing', error, {
+        socketId: socket.id,
+        data,
         userId: socket.userId || 'anonymous',
         error: error.message
       });

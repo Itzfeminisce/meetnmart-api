@@ -4,6 +4,7 @@ import { getSocketIO } from './socketio'
 import { NextFunction, Request, Response } from 'express'
 import { Unauthorized } from './responses'
 import { DATABASE_CACHE_TABLE_NAME } from './cacheUtils'
+import { CallAction } from '../events'
 
 const supabaseClient = createClient(
   getEnvVar("SUPABASE_URL"),
@@ -15,6 +16,8 @@ const notificationChannel = supabaseClient.channel('events:notifications');
 const userPresenceChannel = supabaseClient.channel('events:user_presence');
 const marketChannel = supabaseClient.channel('events:markets');
 const profileChannel = supabaseClient.channel('events:profiles');
+const conversationChannel = supabaseClient.channel('events:conversations');
+const messagesChannel = supabaseClient.channel('events:messages');
 
 export const setupSupabaseRealtime = () => {
   console.log('🔄 Setting up Supabase realtime...');
@@ -25,7 +28,7 @@ export const setupSupabaseRealtime = () => {
   // // Setup notification channel with user-specific filtering
   // const setupNotificationChannel = (userId?: string) => {
   //   const filter = userId ? `recipient_id=eq.${userId}` : undefined;
-    
+
   //   notificationChannel.on(
   //     'postgres_changes',
   //     {
@@ -43,8 +46,8 @@ export const setupSupabaseRealtime = () => {
   //       };
 
   //       console.log({socketData});
-        
-        
+
+
   //       // if (userId) {
   //       //   // Send to specific user
   //       //   getSocketIO().getIO().to(`user:${userId}`).emit("notification:insert", socketData);
@@ -55,39 +58,60 @@ export const setupSupabaseRealtime = () => {
   //     }
   //   );
   // };
-  
-  const socket = getSocketIO()
 
+  const socket = getSocketIO()
+ 
+  // Setup notification channel
+  conversationChannel
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'conversation_participants',
+      filter: 'unread_count=gt.0'
+    }, async (payload) => {
+      console.log('💬 New conversation created:', payload.new)
+      
+        const recipientId = payload.new?.user_id
+        const recipientSocketId = await socket.getSocketId(recipientId)
+
+        if (recipientSocketId) {
+          socket.getIO().to(recipientSocketId).emit(CallAction.IncomingChat, "refetch")
+        }
+      // const recipientId = payload.new?.user2_id // Assuming user2 is the recipient
+      // Get recipient's socket ID
+      // const recipientSocketId = await socket.getSocketId(recipientId);
+
+    })
   // Setup user presence channel
   notificationChannel
-  .on(
-    'postgres_changes',
-    {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'notifications',
-      // filter,
-    },
-    async (payload) => {
-      // console.log('📬 New notification received:', payload.new.id);
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        // filter,
+      },
+      async (payload) => {
+        // console.log('📬 New notification received:', payload.new.id);
 
-      const recipientId = payload.new?.recipient_id
-      const recipientSocketId = await socket.getSocketId(recipientId)
+        const recipientId = payload.new?.recipient_id
+        const recipientSocketId = await socket.getSocketId(recipientId)
 
-      if(recipientSocketId){
-        socket.getIO().to(recipientSocketId).emit("notification:insert", payload.new)
-      }
-    })  
-    
-    
+        if (recipientSocketId) {
+          socket.getIO().to(recipientSocketId).emit("notification:insert", payload.new)
+        }
+      })
+
+
   userPresenceChannel
     .on(
       'postgres_changes',
-      { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: DATABASE_CACHE_TABLE_NAME, 
-        filter: 'column_name=eq.socket' 
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: DATABASE_CACHE_TABLE_NAME,
+        filter: 'column_name=eq.socket'
       },
       async (payload) => {
         console.log('🔌 User joined event:', payload.new);
@@ -100,11 +124,11 @@ export const setupSupabaseRealtime = () => {
     )
     .on(
       'postgres_changes',
-      { 
-        event: 'DELETE', 
-        schema: 'public', 
-        table: DATABASE_CACHE_TABLE_NAME, 
-        filter: 'column_name=eq.socket' 
+      {
+        event: 'DELETE',
+        schema: 'public',
+        table: DATABASE_CACHE_TABLE_NAME,
+        filter: 'column_name=eq.socket'
       },
       async (payload) => {
         console.log('🔌 User left event:', payload.old);
@@ -118,66 +142,67 @@ export const setupSupabaseRealtime = () => {
 
   // Setup market channel
   marketChannel
-  .on(
-    'postgres_changes',
-    { event: 'INSERT', schema: 'public', table: 'markets' },
-    async (payload) => {
-      console.log('🏪 New market added:', payload.new);
-      socket.broadcast("markets:new_market_added", {
-        evt: "refetch",
-        val: payload.new,
-        marketId: payload.new?.id
-      });
-    }
-  );
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'markets' },
+      async (payload) => {
+        console.log('🏪 New market added:', payload.new);
+        socket.broadcast("markets:new_market_added", {
+          evt: "refetch",
+          val: payload.new,
+          marketId: payload.new?.id
+        });
+      }
+    );
 
   // Setup profile channel
   profileChannel
-  .on(
-    'postgres_changes',
-    { event: 'UPDATE', schema: 'public', table: 'profiles' },
-    (payload) => {
-      // console.log('👤 Profile updated:', payload.new?.id);
-      // const socketData = {
-      //   evt: "refetch:is_reachable",
-      //   val: {
-      //     old: payload.old,
-      //     new: payload.new
-      //   },
-      //   userId: payload.new?.id
-      // };
-      
-      // Broadcast profile update
-      socket.broadcast("profiles:update", "refetch");
-      
-      // Also emit to specific user's room if they're connected
-      // if (payload.new?.id) {
-      //   socket.getIO().to(`user:${payload.new.id}`).emit("profiles:self_update", socketData);
-      // }
-    }
-  );
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'profiles' },
+      (payload) => {
+        // console.log('👤 Profile updated:', payload.new?.id);
+        // const socketData = {
+        //   evt: "refetch:is_reachable",
+        //   val: {
+        //     old: payload.old,
+        //     new: payload.new
+        //   },
+        //   userId: payload.new?.id
+        // };
+
+        // Broadcast profile update
+        socket.broadcast("profiles:update", "refetch");
+
+        // Also emit to specific user's room if they're connected
+        // if (payload.new?.id) {
+        //   socket.getIO().to(`user:${payload.new.id}`).emit("profiles:self_update", socketData);
+        // }
+      }
+    );
 
   // Subscribe to all channels
   notificationChannel.subscribe();
   userPresenceChannel.subscribe();
   marketChannel.subscribe();
   profileChannel.subscribe();
+  conversationChannel.subscribe();
 
   // Middleware to register user-specific event handlers
   // const registerSupabaseEventHandler = (req: Request, res: Response, next: NextFunction) => {
   //   const user = req.user;
-    
+
   //   if (user?.id) {
   //     // Setup user-specific notification channel
   //     setupNotificationChannel(user.id);
-      
+
   //     // Join user to their specific room for targeted events
   //     if (getSocketIO) {
   //       // This would typically be done in your socket connection handler
   //       console.log(`User ${user.id} registered for realtime events`);
   //     }
   //   }
-    
+
   //   next();
   // };
 

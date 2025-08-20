@@ -2,6 +2,10 @@ interface CacheKeyOptions {
     city?: string;
     category?: string;
     location?: string;
+    /**
+     * Useful for prefixing cachekey
+     */
+    base?: `${string}:`;
   }
   
   interface NormalizedResult {
@@ -327,7 +331,7 @@ interface CacheKeyOptions {
       const baseKey = sortedTokens.join('_');
       const contextKey = contextParts.length > 0 ? `_${contextParts.join('_')}` : '';
       
-      return `market:${baseKey}${contextKey}`;
+      return `${options.base ?? "market:"}${baseKey}${contextKey}`;
     }
   
     /**

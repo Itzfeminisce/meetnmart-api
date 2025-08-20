@@ -7,11 +7,13 @@ import { authenticate } from "../middleware/authenticate";
 import { InternalServerError } from "../utils/responses";
 import { eventManager } from "../utils/eventUtils";
 import { logger } from "../logger";
+import { LocationIQMarketsService } from "../core/locationIQ";
 
 const router = express.Router()
 
 
-router.get("/get-available-markets", asyncHandler(async (req) => {
+router.get("/get-available-markets", authenticate(), asyncHandler(async (req) => {
+
 
     const { limit = 50, userId } = req.query
 
@@ -62,12 +64,6 @@ router.get("/get-nearby-sellers", authenticate(), asyncHandler(async (req) => {
         market_id, category_id
     })
 
-
-    
-    // else console.log(data)
-
-// const cacheKey = ''
-//     cacheService.set()
 
     return data
 

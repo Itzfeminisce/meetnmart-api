@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { MCPSSEClient } from "./llm/MCPSSEClient";
+import { z } from "zod";
 
 
 export type UserType = "buyer" | "seller" | "moderator" | "admin" | "delivery_agent"
@@ -62,7 +63,7 @@ declare global {
     interface Request {
       user?: AuthenticatedUser;
       client?: SupabaseClient<any, "public", any>
-      mcpClient?:  MCPSSEClient
+      mcpClient?: MCPSSEClient
     }
   }
 }
@@ -218,3 +219,12 @@ export interface Review {
   created_at: string
   feedback_text: string
 }
+
+
+const createChatSchema = z.object({
+  to: z.string().min(1, "Recipient ID is required"),
+  message: z.string().min(1, "Message content is required"),
+  context: z.any().optional() // Context can be any type, but optional
+})
+
+export type CreateChatPayload = z.infer<typeof createChatSchema>;

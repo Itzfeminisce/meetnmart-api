@@ -113,7 +113,7 @@ router.post("/recipient", authenticate(), asyncHandler(async (req: Request, res:
         sender_id: user.id,
         title: "Withdrawal Request",
         type: "payment",
-        description: "Your withdrawal request has been submitted and now pending approval. This usually takes an hour or less. Thank you for using MeetnMart",
+        description: "Your withdrawal request has been submitted and now pending release. Thank you for using MeetnMart",
         metadata: {
             email_notification_template_variant: "request",
             ..._withdrawal_data,
@@ -123,6 +123,8 @@ router.post("/recipient", authenticate(), asyncHandler(async (req: Request, res:
 
     return { user_id: user.id, message: "Withdrawal has been submitted." }
 }));
+
+
 router.post("/otp/finalize", authenticate(), asyncHandler(async (req: Request, res: Response) => {
     const payload = z.object({
         amount: z.coerce.number(), account_name: z.string(), account_number: z.string(), bank_code: z.string()

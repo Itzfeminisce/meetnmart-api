@@ -27,7 +27,7 @@ const getFeedCompletionSchema = () => {
         needed_by: z.string().nullable(),
         quantity: z.string().nullable(),
         delivery_preference: z.boolean(),
-        location: z.string()
+        location: z.string().nullable()
     })
 }
 
@@ -36,13 +36,13 @@ const getFeedCompletionSystemPrompt = (options: { categories: string }) => {
  
     - type: The type of request (one of: "buyer_request", "seller_offer", "delivery_ping")
     - title: A concise summary of the request (max 50 characters)
-    - content: The original user message
+    - content: The original user message with enhanced details from the input json.
     - category: The inferred product category ID must be one of the given id:name provided in (${options.categories}). Return the ID from the supported categories (e.g. if "uuid:text" is in the list, return "uuid"). Always return "f1f4502f-2331-4b3c-b2f0-99e75f96f8ef" if none is found.
     - price_range: Extract any mentioned price in ₦ format (e.g. "₦5000" or "₦5000-7000") or null if not specified
     - needed_by: Time constraint or deadline in format "before X" or "by X" where X is time/date, or null if not specified
     - quantity: The requested quantity with units (e.g. "1 basket", "2 kg", "5 pieces") or null if not specified
     - delivery_preference: Boolean indicating if delivery is preferred (true if delivery mentioned, false otherwise)
-    - location: The specified location or "Not specified" if not mentioned
+    - location: The specified location or "null" if not mentioned
 
     Always return a valid JSON object with these fields. If a field's value cannot be determined from the input, use null.
     

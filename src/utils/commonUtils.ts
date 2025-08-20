@@ -102,6 +102,22 @@ export function generateReferralId(length: number = 8): string {
     return result;
 }
 
+export function generateCryptoString(length: number = 32): string {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{}<>?';
+    const charsetLength = charset.length;
+  
+    const bytes = new Uint8Array(length);
+    crypto.getRandomValues(bytes);
+  
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += charset[bytes[i] % charsetLength];
+    }
+  
+    return result;
+  }
+  
+
 
 
 /**

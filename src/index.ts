@@ -27,6 +27,7 @@ import { registerMCPClient } from './middleware/registerMCPClient';
 
 import "./cron-tasks"
 import "./core/events"
+import { ConversationRouter } from './routes/conversations';
 
 
 const app = express();
@@ -137,10 +138,12 @@ app.use('/users', UsersRouter);
 app.use('/messaging', MessagingRouter);
 app.use('/markets', MarketRouter);
 app.use('/search', SearchRouter);
+app.use("/conversations", ConversationRouter);
 app.use('/calls', CallsRouter);
 app.use('/whispa', WhispaRouter);
 app.post('/livekit/token', cors(), asyncHandler(createLivekitToken));
 app.post('/waitlist', asyncHandler(notifyWaitlistUser));
+
 
 // Error handling
 app.use(notFound);
