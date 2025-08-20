@@ -135,8 +135,8 @@ class MailerV2 {
       maxMessages: 50,
       connectionTimeout: 15000,
       socketTimeout: 30000,
-      debug: process.env.NODE_ENV === 'development',
-      logger: process.env.NODE_ENV === 'development'
+      debug: false, // process.env.NODE_ENV === 'development',
+      logger: false, // process.env.NODE_ENV === 'development'
     });
   }
 

@@ -5,10 +5,12 @@ import { Server, Socket } from 'socket.io';
 import { logger } from '../logger';
 import { cacheService, ICacheService } from './cacheUtils';
 import { AppEvent, CallAction } from '../events';
-import { updateUserProfileById } from '../functions';
-import { fetchUserById, releaseFund, storeNewCallSession, storeTransaction, updateCallSession, updateTransaction, updateWallet } from '../routes';
-import { CallData, EscrowData, EscrowReleasedData } from '../globals';
+import { createOrSendMessage, markConversationAsRead, updateUserProfileById } from '../functions';
+import { fetchUserById, getSystemRequiredPreferences, releaseFund, storeNewCallSession, storeTransaction, updateCallSession, updateTransaction, updateWallet } from '../routes';
+import { CallData, CreateChatPayload, EscrowData, EscrowReleasedData } from '../globals';
 import { mailerV2 } from './mailer_v2';
+import { calculateWithdrawalReceivedAmount, WithdrawalOptions } from './commonUtils';
+import { supabaseClient } from './supabase';
 
 const socketLogger = logger;
 
@@ -83,21 +85,21 @@ export class SocketIOServer {
 
   private async authenticateSocket(socket: Socket): Promise<string | undefined> {
     // Log authentication attempt
-    socketLogger.debug('Authenticating socket connection', {
-      socketId: socket.id,
-      authRequired: this.config.auth?.required,
-      tokenKey: this.config.auth?.tokenKey
-    });
+    // socketLogger.debug('Authenticating socket connection', {
+    //   socketId: socket.id,
+    //   authRequired: this.config.auth?.required,
+    //   tokenKey: this.config.auth?.tokenKey
+    // });
 
     // Get token from either auth object or query parameters for flexibility
     const token = socket.handshake.auth[this.config.auth?.tokenKey || ''] ||
       socket.handshake.query[this.config.auth?.tokenKey || ''] as string;
 
     // Log token status (without revealing token content)
-    socketLogger.debug('Token status', {
-      socketId: socket.id,
-      hasToken: !!token
-    });
+    // socketLogger.debug('Token status', {
+    //   socketId: socket.id,
+    //   hasToken: !!token
+    // });
 
     // If authentication is not required and no token provided, allow connection without userId
     if (!token && !this.config.auth?.required) {
@@ -142,12 +144,12 @@ export class SocketIOServer {
       // Cache the successful authentication
       (socket as AuthenticatedSocket).userId = token;
       await this.cacheService.set(cacheKey, socket.id, this.config.cache?.ttl);
-      await updateUserProfileById(token, { is_online: true })
+      await updateUserProfileById(token, { is_online: true, })
 
-      socketLogger.debug('User authenticated with JWT', {
-        socketId: socket.id,
-        token: token
-      });
+      // socketLogger.debug('User authenticated with JWT', {
+      //   socketId: socket.id,
+      //   token: token
+      // });
 
       return socket.id;
     } catch (error) {
@@ -159,16 +161,23 @@ export class SocketIOServer {
     }
   }
 
+  public getSocketId(userId: string) {
+    return this.getUserByAuthTokenFormCache(userId);
+  }
+
   private async getUserByAuthTokenFormCache(tokenOrUserId: string) {
     try {
 
       const cacheKey = `${this.config.cache?.prefix}auth:${tokenOrUserId}`;
       const cachedSocketId = await this.cacheService.get<string>(cacheKey);
 
+      // console.log({cacheKey, cachedSocketId});
+
+
       if (cachedSocketId) {
-        socketLogger.info('User Sockey ID received from cache', {
-          cachedSocketId: cachedSocketId
-        });
+        // socketLogger.info('User Socket ID received from cache', {
+        //   cachedSocketId: cachedSocketId
+        // });
         return cachedSocketId;
       }
 
@@ -190,10 +199,10 @@ export class SocketIOServer {
   private setupMiddleware() {
     // Add connection monitoring
     this.io.engine.on('connection', (socket) => {
-      socketLogger.debug('Transport connection established', {
-        id: socket.id,
-        transport: socket.transport.name
-      });
+      // socketLogger.debug('Transport connection established', {
+      //   id: socket.id,
+      //   transport: socket.transport.name
+      // });
     });
 
     this.io.engine.on('connectionError', (err) => {
@@ -206,14 +215,14 @@ export class SocketIOServer {
     // Socket.IO middleware for authentication
     this.io.use(async (socket: Socket, next) => {
       try {
-        socketLogger.info('Socket connection attempt', {
-          socketId: socket.id,
-          // headers: {
-          //   ...socket.handshake.headers,
-          //   cookie: '[redacted]' // Don't log cookies
-          // },
-          query: socket.handshake.query
-        });
+        // socketLogger.info('Socket connection attempt', {
+        //   socketId: socket.id,
+        // headers: {
+        //   ...socket.handshake.headers,
+        //   cookie: '[redacted]' // Don't log cookies
+        // },
+        query: socket.handshake.query
+        // });
 
         // Try to authenticate the socket
         await this.authenticateSocket(socket);
@@ -284,7 +293,7 @@ export class SocketIOServer {
     });
   }
 
-  private setupSocketEvents(socket: AuthenticatedSocket) {
+  private async setupSocketEvents(socket: AuthenticatedSocket) {
     // Debug event to confirm connection
     socket.emit('connection_confirmed', {
       socketId: socket.id,
@@ -302,6 +311,17 @@ export class SocketIOServer {
       }
     });
 
+
+
+    this.handleCheckUserPreferences(socket).then(preferences => {
+      socket.emit("check_required_user_preferences", preferences)
+    })
+
+
+
+    socket.on(CallAction.CalculateWithdrawalReceivedAmount, ([data]) => {
+      this.calculateWithdrawalReceivedAmount(socket, data);
+    })
     socket.on(CallAction.Outgoing, ([data]) => {
       this.handleOutgoingCall(socket, data);
     })
@@ -323,9 +343,17 @@ export class SocketIOServer {
     socket.on(CallAction.EscrowRejected, ([data]) => {
       this.handleEscrowRejected(socket, data);
     })
-    socket.on(CallAction.EscrowReleased, ([data]) => {
-      this.handleEscrowReleased(socket, data);
+    socket.on(CallAction.CreateChat, ([data]) => {
+      this.handleCreateChat(socket, data);
     })
+
+    socket.on(CallAction.ChatTyping, ([data]) => {
+      this.handleChatTyping(socket, data)
+    })
+    socket.on(CallAction.ChatRead, ([data]) => {
+      this.handleChatRead(socket, data)
+    })
+
 
     // Error handling
     socket.on('error', (error) => {
@@ -337,6 +365,34 @@ export class SocketIOServer {
     });
   }
 
+  private async handleCheckUserPreferences(socket: any) {
+    // console.log({ socket });
+    const userId = socket.userId;
+
+
+    if (userId) {
+      const socketId = socket.id;
+
+      const preferences = await getSystemRequiredPreferences(userId)
+
+      return preferences
+    }
+
+
+    // const userId = 
+    // const socket = getSocketIO()
+    // const socketId = await socket.getSocketId(profile.id)
+
+    // console.log("Socket ID", {socketId});
+
+
+    // socket.getIO().to(socketId).emit("check_required_user_preferences", {
+    //     allows_notification_services: false,
+    //     allows_location_services: false,
+    //     has_fcm_token: false
+    // })
+  }
+
   private async handleDisconnect(socket: AuthenticatedSocket) {
     const cacheKey = `${this.config.cache?.prefix}auth:${socket?.userId}`;
     await this.cacheService.del(cacheKey);
@@ -344,6 +400,12 @@ export class SocketIOServer {
     socket.emit(AppEvent.DISCONNECT, { userId: socket.id })
   }
 
+  private async calculateWithdrawalReceivedAmount(socket: AuthenticatedSocket, withdrawalAmount: number) {
+    const amount = calculateWithdrawalReceivedAmount(withdrawalAmount)
+    // console.log({amount, withdrawalAmount});
+
+    socket.emit(CallAction.CalculateWithdrawalReceivedAmount, amount)
+  }
   private async handleOutgoingCall(socket: AuthenticatedSocket, data: any) {
     try {
       const receiver = data.receiver
@@ -553,6 +615,74 @@ export class SocketIOServer {
     }
   }
 
+  private async handleCreateChat(socket: AuthenticatedSocket, payload: CreateChatPayload & { conversationId: string }) {
+    try {
+
+
+      const chat = {
+        text: payload.message,
+        // sender: 'other',
+        // timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        // status: 'sent',
+        conversationId: payload.conversationId,
+      }
+
+      createOrSendMessage({
+        message: payload.message,
+        to: payload.to,
+      }, supabaseClient, socket.userId)
+
+      try {
+        const receiverSocketId = await this.getUserByAuthTokenFormCache(payload.to)
+        this.io.to(receiverSocketId).emit(CallAction.CreateChat, chat)
+      } catch (error) {
+        console.log("[handleCreateChat]#error", "User is not online or not found", error);
+      }
+      // Notify the seller/reciiver they have a call
+    } catch (error) {
+      socketLogger.error('Error in handle create chat', error, {
+        socketId: socket.id,
+        payload,
+        userId: socket.userId || 'anonymous',
+        error: error.message
+      });
+    }
+  }
+
+  private async handleChatRead(socket: AuthenticatedSocket, data: any) {
+    try {
+      console.log("[handleChatRead]#data", data);
+
+      // const 
+      // const receiverSocketId = await this.getUserByAuthTokenFormCache(data.participantId)
+      await markConversationAsRead(data.conversationId, supabaseClient, socket.userId)
+
+      // this.io.to(receiverSocketId).emit(CallAction.ChatRead, data)
+    } catch (error) {
+      socketLogger.error('Error in handle mark chat as read', error, {
+        socketId: socket.id,
+        data,
+        userId: socket.userId || 'anonymous',
+        error: error.message
+      });
+    }
+  }
+  private async handleChatTyping(socket: AuthenticatedSocket, data: any) {
+    try {
+      const receiverSocketId = await this.getUserByAuthTokenFormCache(data.participantId)
+
+      // Notify the receiver that the sender is typing
+      this.io.to(receiverSocketId).emit(CallAction.ChatTyping, data)
+    } catch (error) {
+      socketLogger.error('Error in handle chat typing', error, {
+        socketId: socket.id,
+        data,
+        userId: socket.userId || 'anonymous',
+        error: error.message
+      });
+    }
+  }
+
 
   public broadcast(event: string, data: any, room?: string) {
     try {
@@ -584,17 +714,17 @@ export class SocketIOServer {
 // Singleton instance
 let socketIOServer: SocketIOServer | null = null;
 
-export const initSocketIO = (
+export function initSocketIO(
   httpServer: HttpServer,
   config?: SocketConfig
-): SocketIOServer => {
+): SocketIOServer {
   if (!socketIOServer) {
     socketIOServer = new SocketIOServer(httpServer, config);
   }
   return socketIOServer;
 };
 
-export const getSocketIO = (): SocketIOServer => {
+export function getSocketIO(): SocketIOServer {
   if (!socketIOServer) {
     throw new Error('Socket.IO server not initialized');
   }

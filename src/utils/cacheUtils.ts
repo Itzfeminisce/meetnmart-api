@@ -3,6 +3,7 @@ import { logger } from '../logger';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabaseClient } from './supabase';
 import { GeoCache } from './geoCacheUtils';
+import { getEnvVar } from './env';
 
 // Function to mask sensitive data for logging and debugging
 function maskSensitiveData(data: any): any {
@@ -60,9 +61,12 @@ type CacheOptions = {
         port: number;
         password?: string;
     };
+    tableName?: string;
+    columnTypeName?: string;
 }
 
 export interface ICacheService {
+    createTableIfNotExists?: (tableName: string, columnType: string) => Promise<ICacheService>;
     get<T>(key: string): Promise<T | null>;
     set(key: string, value: any, ttl?: number): Promise<void>;
     del(key: string): Promise<void>;
@@ -80,6 +84,7 @@ interface CacheItem {
     lastAccessed: number; // Timestamp when item was last accessed
 }
 
+export const DATABASE_CACHE_TABLE_NAME = "cache"
 // Memory cache service implementation
 class MemoryCacheService implements ICacheService {
     private cache: Map<string, CacheItem> = new Map();
@@ -573,17 +578,19 @@ class RedisCacheService implements ICacheService {
 export class DatabaseCacheService implements ICacheService {
     private supabase: SupabaseClient;
     private tableName: string;
+    private columnType: string;
     private defaultTtl: number | undefined;
+    private tableInitialized: boolean = false;
 
     constructor(
         supabase: SupabaseClient,
-        options: {
-            tableName?: string;
-            ttl?: number; // Default TTL in seconds
-        } = {}
+        options: CacheOptions = {
+            type: "database"
+        }
     ) {
         this.supabase = supabase;
-        this.tableName = options.tableName || 'user_socket_cache';
+        this.tableName = options.tableName || 'cache';
+        this.columnType = options.columnTypeName;
         this.defaultTtl = options.ttl;
 
         logger.info('Supabase cache service initialized', {
@@ -592,11 +599,39 @@ export class DatabaseCacheService implements ICacheService {
         });
     }
 
+    private async ensureTableExists(): Promise<void> {
+        if (this.tableInitialized) return;
+
+        const { error } = await this.supabase.rpc('create_cache_table_if_not_exists', {
+            p_table_name: this.tableName
+        });
+
+        if (error) {
+            logger.error('Failed to create cache table', error, {
+                table: this.tableName
+            });
+            throw error;
+        }
+
+        this.tableInitialized = true;
+        logger.info('Cache table verified/created successfully', {
+            table: this.tableName
+        });
+    }
+
+    async createTableIfNotExists(tableName: string, columnType: string): Promise<DatabaseCacheService> {
+        this.tableName = tableName;
+        this.columnType = columnType;
+        await this.ensureTableExists();
+        return this;
+    }
+
     /**
      * Get a value from cache by key
      * Supports wildcard patterns with * and ? characters
      */
     async get<T>(key: string): Promise<T | null> {
+        await this.ensureTableExists();
         try {
             // Check if the key contains a wildcard pattern
             if (key.includes('*') || key.includes('?')) {
@@ -680,6 +715,7 @@ export class DatabaseCacheService implements ICacheService {
      * Store a value in cache with optional TTL
      */
     async set(key: string, value: any, ttl?: number): Promise<void> {
+        await this.ensureTableExists();
         try {
             const serializedValue = JSON.stringify(value);
             const maskedValue = this.maskSensitiveData(value);
@@ -697,6 +733,7 @@ export class DatabaseCacheService implements ICacheService {
                 .upsert({
                     key,
                     value: serializedValue,
+                    type: this.columnType,
                     expires_at: expiresAt,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'key' });
@@ -737,6 +774,7 @@ export class DatabaseCacheService implements ICacheService {
                 .upsert({
                     key,
                     value: JSON.stringify({ userId, socketId }),
+                    type: this.columnType,
                     user_id: userId,
                     socket_id: socketId,
                     expires_at: expiresAt,
@@ -839,6 +877,7 @@ export class DatabaseCacheService implements ICacheService {
      * Delete an entry from the cache by key
      */
     async del(key: string): Promise<void> {
+        await this.ensureTableExists();
         try {
             if (key.includes('*') || key.includes('?')) {
                 // Handle wildcard pattern
@@ -872,6 +911,7 @@ export class DatabaseCacheService implements ICacheService {
      * Delete all entries from the cache
      */
     async flush(): Promise<void> {
+        await this.ensureTableExists();
         try {
             const { error } = await this.supabase
                 .from(this.tableName)
@@ -1088,23 +1128,23 @@ export function createCacheService(options: CacheOptions): ICacheService {
 
     switch (cacheType) {
         case 'redis':
-            logger.debug('Using Redis cache service', {
-                ttl: options.ttl,
-                host: options.redis?.host || 'localhost',
-                port: options.redis?.port || 6379
-            });
+            // logger.debug('Using Redis cache service', {
+            //     ttl: options.ttl,
+            //     host: options.redis?.host || 'localhost',
+            //     port: options.redis?.port || 6379
+            // });
             return new RedisCacheService(options);
         case 'memory':
-            logger.debug('Using Memory cache service', {
-                ttl: options.ttl,
-                memoryLimit: options.memoryLimit || '100MB',
-                checkPeriod: options.checkPeriod
-            });
+            // logger.debug('Using Memory cache service', {
+            //     ttl: options.ttl,
+            //     memoryLimit: options.memoryLimit || '100MB',
+            //     checkPeriod: options.checkPeriod
+            // });
             return new MemoryCacheService(options);
         case 'database':
-            logger.debug('Using Database cache service', {
-                database: 'cache'
-            });
+            // logger.debug('Using Database cache service', {
+            //     database: 'database'
+            // });
 
             return new DatabaseCacheService(options.databaseClient, options);
         default:
@@ -1113,21 +1153,46 @@ export function createCacheService(options: CacheOptions): ICacheService {
     }
 }
 
-// Example usage with memory cache
+// this will eventually replace all tables to have a centralized caching table
+
+
+// Create separate cache services for different purposes
 export const cacheService = createCacheService({
     databaseClient: supabaseClient,
-    type: "database", // Change to "memory" to use memory cache
-    // Optional memory cache configuration when using memory type:
-    // memoryLimit: 200 * 1024 * 1024, // 200MB
-    // ttl: 3600, // Default TTL in seconds
-    // checkPeriod: 60000, // Cleanup every minute (in milliseconds)
+    type: (getEnvVar("NODE_ENV") == "production") ? "database" : "redis",
+    tableName: DATABASE_CACHE_TABLE_NAME,
+    columnTypeName: "socket"
 });
 
+
+// Create separate cache services for different purposes
+export const generalCacheService = createCacheService({
+    databaseClient: supabaseClient,
+    type: (getEnvVar("NODE_ENV") == "production") ? "database" : "redis",
+    tableName: DATABASE_CACHE_TABLE_NAME,
+    columnTypeName: "general"
+});
 
 const DEFAULT_RESOLUTION = 0.001; // ~111 meters
 const DEFAULT_TTL = 60; // 60 seconds
 
-export const geoCacheService = new GeoCache(cacheService, {
+// Create a dedicated cache service for geo location data
+export const geoLocationCacheService = createCacheService({
+    databaseClient: supabaseClient,
+    type: (getEnvVar("NODE_ENV") == "production") ? "database" : "redis",
+    tableName: DATABASE_CACHE_TABLE_NAME,
+    columnTypeName: "geo"
+});
+// Create a dedicated cache service for geo location data
+export const marketPlaceCacheService = createCacheService({
+    databaseClient: supabaseClient,
+    type: (getEnvVar("NODE_ENV") == "production") ? "database" : "redis",
+    tableName: DATABASE_CACHE_TABLE_NAME,
+    columnTypeName: "marketplace"
+});
+
+// Initialize the GeoCache with the dedicated cache service
+export const geoCacheService = new GeoCache(geoLocationCacheService, {
     defaultTTL: DEFAULT_TTL,
-    resolution: DEFAULT_RESOLUTION
-})
+    resolution: DEFAULT_RESOLUTION,
+});

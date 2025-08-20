@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -6,6 +6,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 import { ipAddressMiddleware } from './middleware/ipMiddleware';
 import { initSocketIO } from './utils/socketio';
+import { setupSupabaseRealtime } from './utils/supabase';
 import http from 'http';
 import { getEnvVar } from './utils/env';
 import { logger } from './logger';
@@ -16,6 +17,17 @@ import { CallsRouter } from './routes/calls';
 import fileUpload from "express-fileupload"
 import { UploadRouter } from './routes/uploads';
 import { SearchRouter } from './routes/search';
+import { MarketRouter } from './routes/markets';
+import { WhispaRouter } from './routes/whispa';
+import { UsersRouter } from './routes/users';
+import { PaymentRouter } from './routes/payments';
+import { registerMCPClient } from './middleware/registerMCPClient';
+
+
+
+import "./cron-tasks"
+import "./core/events"
+import { ConversationRouter } from './routes/conversations';
 
 
 const app = express();
@@ -26,8 +38,8 @@ const allowedOrigins = [
   ...(getEnvVar("NODE_ENV") === 'development' ? [
     'http://localhost:3000',
     'http://localhost:3001',
-  ]:[]),
-  process.env.APP_URL ,
+  ] : []),
+  process.env.APP_URL,
   'https://dev.meetnmart.com',
   'https://meetnmart.com',
   'https://www.meetnmart.com',
@@ -56,10 +68,10 @@ if (getEnvVar("NODE_ENV") === 'production') {
 
 // Apply CORS middleware before other middleware to handle preflight requests properly
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
       callback(null, true);
     } else {
@@ -69,7 +81,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Supabase-Refresh', 'X-Resource-Group-Name'],
   exposedHeaders: ['Content-Length', 'X-Requested-With'],
   maxAge: 86400 // 24 hours in seconds - how long the results of a preflight request can be cached
 }));
@@ -85,19 +97,27 @@ app.use(helmet({
 }));
 app.use(morgan('dev'));
 app.use(ipAddressMiddleware());
+// app.use(registerMCPClient())
 
 
 const httpServer = http.createServer(app);
 
 // Initialize Socket.IO with proper configuration
-initSocketIO(httpServer, { 
+initSocketIO(httpServer, {
   cors: {
     origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
   },
-  auth: {required: true, tokenKey: "token" },
+  auth: { required: true, tokenKey: "token" },
 });
+
+const registerRequest = setupSupabaseRealtime();
+
+// app.use(authenticate(), registerRequest)
+
+// Setup Supabase realtime subscriptions
+
 
 // Health Check Route
 app.get('/', (_, res) => {
@@ -111,12 +131,19 @@ app.options('*', cors());
 // If createLivekitToken is a router:
 
 // OR if createLivekitToken is a handler function (not a router):
+// app.use("*", authenticate(), registerRequest())
+app.use('/payments', PaymentRouter);
 app.use('/uploads', UploadRouter);
+app.use('/users', UsersRouter);
 app.use('/messaging', MessagingRouter);
+app.use('/markets', MarketRouter);
 app.use('/search', SearchRouter);
+app.use("/conversations", ConversationRouter);
 app.use('/calls', CallsRouter);
+app.use('/whispa', WhispaRouter);
 app.post('/livekit/token', cors(), asyncHandler(createLivekitToken));
 app.post('/waitlist', asyncHandler(notifyWaitlistUser));
+
 
 // Error handling
 app.use(notFound);

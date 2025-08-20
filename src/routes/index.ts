@@ -3,9 +3,10 @@ import { AccessToken } from 'livekit-server-sdk';
 import { getEnvVar } from "../utils/env";
 import { mailerV2 } from "../utils/mailer_v2";
 import { supabaseClient } from "../utils/supabase";
-import { CallData, EscrowData, EscrowStatus } from "../globals";
+import { CallData, EscrowData, EscrowStatus, UserProfile, } from "../globals";
 import fileUpload from "express-fileupload";
 import { InternalServerError } from "../utils/responses";
+import { logger } from "../logger";
 
 
 export async function createLivekitToken(req: Request) {
@@ -172,9 +173,6 @@ export async function uploadFile(
         const fileBuffer = file.data;
         const contentType = file.mimetype;
 
-        console.log({ fileBuffer, contentType });
-
-
         // Upload to Supabase Storage
         const { data, error: uploadError } = await supabaseClient.storage
             .from('products')
@@ -192,4 +190,42 @@ export async function uploadFile(
         console.error('Upload error:', error.message || error);
         throw new InternalServerError("Upload failed");
     }
+}
+
+export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>) => {
+    try {
+        const { data, error } = await supabaseClient
+            .from('profiles')
+            .update(updates)
+            .eq('id', userId)
+            .select("id")
+            .single();
+
+        if (error) {
+            throw new Error(`Failed to update profile: ${error.message}`);
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Profile update error:', error);
+        throw error;
+    }
+};
+
+
+export const getSystemRequiredPreferences = async (userId: string) => {
+    const { data: fcmTokens, error } = await supabaseClient.from("fcm_tokens").select("token").eq("user_id", userId)
+
+    if (error) {
+        logger.error("Failed to fetch user fcm tokens", error, { userId })
+        return false
+    };
+
+    return {
+        fcmToken: {
+            available: fcmTokens.length > 0,
+            tokens: fcmTokens.map(it => it.token)
+        }
+    }
+
 }

@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
+import { UserType } from '../globals';
 
 // Core Types
-export type UserType = 'seller' | 'buyer' | 'deliveryAgent';
 export type TierLevel = 'free' | 'basic' | 'pro' | 'elite';
 export type SupportPriority = 'community' | 'standard' | 'priority' | 'dedicated';
 export type RegionalScope = 'local' | 'state' | 'neighboring_states';
@@ -165,6 +165,7 @@ export class MeetnMartTierManager extends EventEmitter {
     tierLevel: TierLevel
   ): T extends 'seller' ? SellerTierConfig : T extends 'buyer' ? BuyerTierConfig : DeliveryAgentTierConfig {
     const configKey = `${userType}Tiers` as const;
+    // @ts-ignore
     return structuredClone(this.config[configKey][tierLevel]) as any;
   }
 
@@ -408,7 +409,7 @@ export class MeetnMartTierManager extends EventEmitter {
   public preloadUserConfigurations(userIds: string[]): void {
     // Batch preload commonly accessed configurations
     const tiers: TierLevel[] = ['free', 'basic', 'pro', 'elite'];
-    const userTypes: UserType[] = ['seller', 'buyer', 'deliveryAgent'];
+    const userTypes: UserType[] = ['seller', 'buyer', 'delivery_agent'];
     
     userTypes.forEach(type => {
       tiers.forEach(tier => {
@@ -458,7 +459,7 @@ export class MeetnMartTierManager extends EventEmitter {
     switch (userType) {
       case 'seller': return tierConfig.maxRequestAmount;
       case 'buyer': return tierConfig.maxPaymentPerTransaction;
-      case 'deliveryAgent': return tierConfig.maxTransportableValue;
+      case 'delivery_agent': return tierConfig.maxTransportableValue;
     }
   }
 
@@ -466,7 +467,7 @@ export class MeetnMartTierManager extends EventEmitter {
     switch (userType) {
       case 'seller': return tierConfig.monthlyRequestCap;
       case 'buyer': return tierConfig.monthlyPaymentCap;
-      case 'deliveryAgent': return tierConfig.monthlyTransportCap;
+      case 'delivery_agent': return tierConfig.monthlyTransportCap;
     }
   }
 
@@ -508,7 +509,7 @@ export class MeetnMartTierManager extends EventEmitter {
     switch (userType) {
       case 'seller': return 'completedTransactions';
       case 'buyer': return 'completedPurchases';
-      case 'deliveryAgent': return 'completedDeliveries';
+      case 'delivery_agent': return 'completedDeliveries';
     }
   }
 
@@ -516,7 +517,7 @@ export class MeetnMartTierManager extends EventEmitter {
     switch (userType) {
       case 'seller': return 'monthlyRevenueThreshold';
       case 'buyer': return 'monthlySpendingThreshold';
-      case 'deliveryAgent': return 'monthlyDeliveryValueThreshold';
+      case 'delivery_agent': return 'monthlyDeliveryValueThreshold';
     }
   }
 
@@ -524,7 +525,7 @@ export class MeetnMartTierManager extends EventEmitter {
     switch (userType) {
       case 'seller': return 'monthlyRevenue';
       case 'buyer': return 'monthlySpending';
-      case 'deliveryAgent': return 'monthlyDeliveryValue';
+      case 'delivery_agent': return 'monthlyDeliveryValue';
     }
   }
 
